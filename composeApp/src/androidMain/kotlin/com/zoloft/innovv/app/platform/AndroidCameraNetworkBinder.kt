@@ -112,9 +112,10 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
     }
 
     private suspend fun bindActiveWifi(ssid: String): NetworkBindingResult {
-        val network = connectivityManager.activeNetwork
-        val capabilities = network?.let { connectivityManager.getNetworkCapabilities(it) }
-        if (network != null && capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+        // Android often keeps cellular as the "active" network when the camera
+        // AP has no internet. Search all Wi-Fi networks, not just the active one.
+        val network = findWifiNetwork()
+        if (network != null) {
             connectivityManager.bindProcessToNetwork(network)
             boundNetwork = network
             _state.value = CameraNetworkState.Bound(ssid)
@@ -125,6 +126,18 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
             NetworkFailure.BIND_FAILED,
             "Join the camera Wi-Fi network in system settings first.",
         )
+    }
+
+    private fun findWifiNetwork(): Network? {
+        val active = connectivityManager.activeNetwork
+        val activeCapabilities = active?.let { connectivityManager.getNetworkCapabilities(it) }
+        if (active != null && activeCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+            return active
+        }
+        return connectivityManager.allNetworks.firstOrNull { network ->
+            connectivityManager.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
     }
 
     override suspend fun bind(): NetworkBindingResult {
@@ -180,7 +193,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun currentSsidFromActiveNetwork(): String? {
-        val network = connectivityManager.activeNetwork ?: return null
+        val network = findWifiNetwork() ?: return null
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return null
         if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return null
         val wifiInfo = capabilities.transportInfo as? WifiInfo ?: return null
