@@ -137,13 +137,6 @@ fun SettingsModalSheet(
                     value = "${state.draft.wifiBand.label} Active",
                     onClick = { picker = SettingsPicker.Wifi },
                 )
-                SettingsRow(
-                    label = "Auto-reconnect",
-                    subtitle = "Rejoin the camera when it comes back",
-                    value = if (state.draft.autoReconnect) "On" else "Off",
-                    onClick = { onUpdateDraft { it.copy(autoReconnect = !it.autoReconnect) } },
-                )
-
                 Spacer(Modifier.height(4.dp))
                 InnovvSectionHeader(
                     text = "Video Settings",

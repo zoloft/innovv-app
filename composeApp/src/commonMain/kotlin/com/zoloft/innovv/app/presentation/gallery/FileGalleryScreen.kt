@@ -99,6 +99,7 @@ fun FileGalleryScreen(
     onTogglePlayback: () -> Unit,
     onPreviewChannel: (CameraChannel) -> Unit,
     onTogglePiP: () -> Unit,
+    onSeekPreview: (Long) -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
     onDismissTransfer: () -> Unit,
@@ -226,6 +227,7 @@ fun FileGalleryScreen(
                     onTogglePlayback = onTogglePlayback,
                     onChannel = onPreviewChannel,
                     onTogglePiP = onTogglePiP,
+                    onSeek = onSeekPreview,
                 )
             }
         }
@@ -491,6 +493,7 @@ private fun ClipPreviewDialog(
     onTogglePlayback: () -> Unit,
     onChannel: (CameraChannel) -> Unit,
     onTogglePiP: () -> Unit,
+    onSeek: (Long) -> Unit,
 ) {
     Dialog(
         onDismissRequest = onClose,
@@ -585,7 +588,9 @@ private fun ClipPreviewDialog(
                 }
                 Slider(
                     value = if (preview.durationMs > 0) preview.positionMs.toFloat() / preview.durationMs else 0f,
-                    onValueChange = {},
+                    onValueChange = { fraction ->
+                        onSeek((fraction * preview.durationMs).toLong())
+                    },
                     modifier = Modifier.weight(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = InnovvColors.AccentPrimary,

@@ -27,6 +27,7 @@ object DemoData {
     val clips: List<MediaClip> = listOf(
         clip(
             id = "clip-0942",
+            epoch = 1_760_000_500L,
             time = "Today 09:42",
             category = ClipCategory.LOOP,
             duration = 180,
@@ -36,6 +37,7 @@ object DemoData {
         ),
         clip(
             id = "clip-0939",
+            epoch = 1_760_000_400L,
             time = "Today 09:39",
             category = ClipCategory.LOOP,
             duration = 180,
@@ -45,6 +47,7 @@ object DemoData {
         ),
         clip(
             id = "clip-0915",
+            epoch = 1_760_000_300L,
             time = "Today 09:15",
             category = ClipCategory.PROTECTED,
             duration = 60,
@@ -54,6 +57,7 @@ object DemoData {
         ),
         clip(
             id = "clip-yesterday",
+            epoch = 1_760_000_200L,
             time = "Yesterday 22:10",
             category = ClipCategory.PARKED,
             duration = 30,
@@ -64,7 +68,7 @@ object DemoData {
         MediaClip(
             id = "photo-1805",
             displayTime = "Yesterday 18:05",
-            startEpochSeconds = 1_760_000_000L,
+            startEpochSeconds = 1_760_000_100L,
             durationSeconds = null,
             resolutionLabel = "12MP Front",
             category = ClipCategory.PHOTO,
@@ -95,6 +99,7 @@ object DemoData {
 
     private fun clip(
         id: String,
+        epoch: Long,
         time: String,
         category: ClipCategory,
         duration: Int,
@@ -106,7 +111,7 @@ object DemoData {
         return MediaClip(
             id = id,
             displayTime = time,
-            startEpochSeconds = 1_760_000_000L + id.hashCode(),
+            startEpochSeconds = epoch,
             durationSeconds = duration,
             resolutionLabel = resolution,
             category = category,

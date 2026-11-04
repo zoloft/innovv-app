@@ -3,6 +3,7 @@ package com.zoloft.innovv.app.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zoloft.innovv.app.domain.CameraController
+import com.zoloft.innovv.app.data.settings.SettingsCache
 import com.zoloft.innovv.app.domain.SettingsRepository
 import com.zoloft.innovv.app.domain.model.ApplyState
 import com.zoloft.innovv.app.domain.model.ApplyStep
@@ -28,6 +29,7 @@ sealed interface SettingsEvent {
 class SettingsViewModel(
     private val camera: CameraController,
     private val repository: SettingsRepository,
+    private val cache: SettingsCache = SettingsCache(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(CameraSettingsState())
     val state: StateFlow<CameraSettingsState> = _state.asStateFlow()
@@ -39,21 +41,22 @@ class SettingsViewModel(
         viewModelScope.launch {
             val connected = camera.connection.value is CameraConnectionState.Connected
             if (!connected) {
-                _state.update {
-                    it.copy(
-                        access = SettingsAccess.OfflineCached(it.cachedAtMillis),
-                        apply = ApplyState.Idle,
-                    )
-                }
+                val cached = cache.load()
+                _state.value = (cached ?: _state.value).copy(
+                    access = SettingsAccess.OfflineCached(cached?.cachedAtMillis),
+                    apply = ApplyState.Idle,
+                )
                 return@launch
             }
             repository.load()
                 .onSuccess { loaded ->
-                    _state.value = loaded.copy(
+                    val online = loaded.copy(
                         access = SettingsAccess.Online,
                         apply = ApplyState.Idle,
                         diagnostics = DiagnosticsState.Idle,
                     )
+                    _state.value = online
+                    cache.save(online)
                 }
                 .onFailure { failure ->
                     _state.update {
@@ -117,6 +120,7 @@ class SettingsViewModel(
                         cachedAtMillis = it.cachedAtMillis,
                     )
                 }
+                cache.save(_state.value)
                 _events.tryEmit(SettingsEvent.Message("Settings applied"))
                 _events.tryEmit(SettingsEvent.Close)
             }.onFailure { failure ->
@@ -146,6 +150,7 @@ class SettingsViewModel(
                         apply = ApplyState.Success,
                     )
                 }
+                cache.save(_state.value)
                 _events.tryEmit(SettingsEvent.Message("SD card formatted"))
             }.onFailure { failure ->
                 _state.update {

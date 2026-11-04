@@ -52,6 +52,11 @@ class DashboardViewModel(
                 _state.update { it.copy(telemetry = telemetry) }
             }
         }
+        viewModelScope.launch {
+            camera.liveLinks.collect { links ->
+                _state.update { it.copy(streamUrl = links?.movieUrl) }
+            }
+        }
     }
 
     fun connect() = camera.connect()
@@ -59,6 +64,8 @@ class DashboardViewModel(
     fun cancelConnect() = camera.cancelConnect()
 
     fun disconnect() = camera.disconnect()
+
+    fun openWifiSettings() = camera.openWifiSettings()
 
     fun setChannel(channel: CameraChannel) {
         _state.update { it.copy(activeChannel = channel) }

@@ -356,3 +356,10 @@ hs_err_pid*
 !/gradle/wrapper/gradle-wrapper.jar
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,vim,linux,macos,intellij,android,androidstudio
+
+### Xcode ###
+xcuserdata/
+DerivedData/
+*.xcuserstate
+iosApp/Pods/
+iosApp/.build/

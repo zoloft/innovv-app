@@ -52,6 +52,7 @@ kotlin {
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.coil.compose)
             implementation(libs.multiplatform.settings)
+            implementation(libs.multiplatform.settings.no.arg)
             implementation(libs.okio)
         }
 
@@ -93,6 +94,12 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
         }
     }
 }

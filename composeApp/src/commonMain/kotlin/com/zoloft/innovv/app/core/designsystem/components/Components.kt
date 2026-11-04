@@ -165,6 +165,7 @@ fun CapsuleButton(
     Box(
         modifier = modifier
             .height(39.dp)
+            .alpha(if (enabled) 1f else 0.35f)
             .clip(CircleShape)
             .background(background)
             .clickable(enabled = enabled, onClick = onClick)
@@ -261,7 +262,7 @@ fun TelemetryCard(
             Text(
                 text = value,
                 color = valueColor,
-                fontSize = 16.sp,
+                fontSize = if (value.length > 9) 13.sp else 16.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -503,7 +504,7 @@ fun DashboardTopBar(
 @Composable
 fun BannerBar(
     banner: Banner,
-    onDismiss: () -> Unit,
+    onDismiss: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val (background, foreground, text) = when (banner) {
@@ -538,14 +539,16 @@ fun BannerBar(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f),
         )
-        Icon(
-            imageVector = Icons.Rounded.Close,
-            contentDescription = "Dismiss",
-            tint = foreground,
-            modifier = Modifier
-                .size(16.dp)
-                .clickable(onClick = onDismiss),
-        )
+        if (onDismiss != null) {
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = "Dismiss",
+                tint = foreground,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable(onClick = onDismiss),
+            )
+        }
     }
 }
 

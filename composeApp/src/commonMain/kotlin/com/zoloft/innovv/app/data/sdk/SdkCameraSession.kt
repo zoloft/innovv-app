@@ -8,6 +8,7 @@ import com.zoloft.innovv.app.domain.model.CameraFailure
 import com.zoloft.innovv.app.domain.model.ConnectionStep
 import com.zoloft.innovv.app.domain.model.GForceState
 import com.zoloft.innovv.app.domain.model.GpsState
+import com.zoloft.innovv.app.domain.model.LiveStreamLinks
 import com.zoloft.innovv.app.domain.model.RecordingState
 import com.zoloft.innovv.app.domain.model.StorageState
 import com.zoloft.innovv.app.domain.model.StreamState
@@ -58,6 +59,9 @@ class SdkCameraSession(
     private val _telemetry = MutableStateFlow(TelemetryState())
     override val telemetry: StateFlow<TelemetryState> = _telemetry.asStateFlow()
 
+    private val _liveLinks = MutableStateFlow<LiveStreamLinks?>(null)
+    override val liveLinks: StateFlow<LiveStreamLinks?> = _liveLinks.asStateFlow()
+
     private var client: InnovvClient? = null
     private var connectJob: Job? = null
     private var telemetryJob: Job? = null
@@ -84,9 +88,11 @@ class SdkCameraSession(
                     }
                 }
 
-                val binding = when (val existing = binder.bind()) {
-                    is NetworkBindingResult.Success -> existing
-                    else -> binder.joinAndBind(ssid)
+                val currentSsid = binder.currentSsid()
+                val binding = if (currentSsid?.contains(ssid, ignoreCase = true) == true) {
+                    binder.bind()
+                } else {
+                    binder.joinAndBind(ssid)
                 }
                 if (binding is NetworkBindingResult.Failure) {
                     fail(binding.reason.name.lowercase().replace('_', ' '))
@@ -124,7 +130,10 @@ class SdkCameraSession(
                     startedAtMillis = startedAt,
                     canCancel = true,
                 )
-                runCatching { newClient.getLiveView() }
+                val links = runCatching { newClient.getLiveView() }.getOrNull()
+                _liveLinks.value = links?.let {
+                    LiveStreamLinks(movieUrl = it.movieUrl, photoUrl = it.photoUrl)
+                }
 
                 _connection.value = CameraConnectionState.Connected(
                     ssid = ssid,
@@ -207,6 +216,10 @@ class SdkCameraSession(
     override suspend fun refreshTelemetry() {
         val current = client ?: return
         refreshTelemetryInternal(current)
+    }
+
+    override fun openWifiSettings() {
+        binder.openSystemWifiSettings()
     }
 
     suspend fun <T> useClient(block: suspend (InnovvClient) -> T): Result<T> {
@@ -323,6 +336,7 @@ class SdkCameraSession(
         telemetryJob = null
         eventJob?.cancel()
         eventJob = null
+        _liveLinks.value = null
         runCatching { client?.close() }
         client = null
         recordingStartedAt = null

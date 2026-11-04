@@ -3,6 +3,7 @@ package com.zoloft.innovv.app
 import com.zoloft.innovv.app.data.demo.DemoCameraController
 import com.zoloft.innovv.app.data.demo.DemoGalleryRepository
 import com.zoloft.innovv.app.data.demo.DemoSettingsRepository
+import com.zoloft.innovv.app.data.settings.SettingsCache
 import com.zoloft.innovv.app.data.sdk.SdkCameraSession
 import com.zoloft.innovv.app.data.sdk.SdkGalleryRepository
 import com.zoloft.innovv.app.data.sdk.SdkSettingsRepository
@@ -26,5 +27,5 @@ class AppContainer(
 
     val dashboard = DashboardViewModel(camera)
     val gallery = GalleryViewModel(camera, galleryRepository)
-    val settings = SettingsViewModel(camera, settingsRepository)
+    val settings = SettingsViewModel(camera, settingsRepository, SettingsCache())
 }

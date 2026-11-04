@@ -161,6 +161,14 @@ class GalleryViewModel(
         }
     }
 
+    fun seekPreview(positionMs: Long) {
+        _state.update { current ->
+            current.preview?.let { preview ->
+                current.copy(preview = preview.copy(positionMs = positionMs.coerceIn(0L, preview.durationMs)))
+            } ?: current
+        }
+    }
+
     fun downloadSelected() {
         val clips = selectedClips() ?: return
         viewModelScope.launch {

@@ -144,6 +144,11 @@ enum class ClipCategory(val label: String) {
 
 enum class CameraChannel { FRONT, REAR }
 
+data class LiveStreamLinks(
+    val movieUrl: String?,
+    val photoUrl: String?,
+)
+
 data class MediaAsset(
     val id: String,
     val name: String,
@@ -357,6 +362,7 @@ data class DashboardUiState(
     val handshake: HandshakeUiState? = null,
     val banner: Banner? = null,
     val shutterFlashKey: Int = 0,
+    val streamUrl: String? = null,
 ) {
     val isConnected: Boolean get() = connection is CameraConnectionState.Connected
     val isConnecting: Boolean get() = connection is CameraConnectionState.Connecting

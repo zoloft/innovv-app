@@ -7,6 +7,7 @@ import com.zoloft.innovv.app.domain.model.CameraConnectionState
 import com.zoloft.innovv.app.domain.model.ConnectionStep
 import com.zoloft.innovv.app.domain.model.GForceState
 import com.zoloft.innovv.app.domain.model.GpsState
+import com.zoloft.innovv.app.domain.model.LiveStreamLinks
 import com.zoloft.innovv.app.domain.model.RecordingState
 import com.zoloft.innovv.app.domain.model.StorageState
 import com.zoloft.innovv.app.domain.model.StreamState
@@ -37,6 +38,9 @@ class DemoCameraController(
 
     private val _telemetry = MutableStateFlow(TelemetryState())
     override val telemetry: StateFlow<TelemetryState> = _telemetry.asStateFlow()
+
+    private val _liveLinks = MutableStateFlow<LiveStreamLinks?>(null)
+    override val liveLinks: StateFlow<LiveStreamLinks?> = _liveLinks.asStateFlow()
 
     private var connectJob: Job? = null
     private var telemetryJob: Job? = null
@@ -131,6 +135,8 @@ class DemoCameraController(
     }
 
     override suspend fun refreshTelemetry() = Unit
+
+    override fun openWifiSettings() = Unit
 
     private fun startTelemetry() {
         telemetryJob?.cancel()

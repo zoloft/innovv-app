@@ -69,6 +69,7 @@ import com.zoloft.innovv.app.domain.model.GForceState
 import com.zoloft.innovv.app.domain.model.GpsState
 import com.zoloft.innovv.app.domain.model.RecordingState
 import com.zoloft.innovv.app.domain.model.StorageState
+import com.zoloft.innovv.app.platform.PlatformLiveVideo
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -123,7 +124,7 @@ fun DashboardScreen(
                         banner = com.zoloft.innovv.app.domain.model.Banner.Info(
                             "Demo mode — simulated camera data",
                         ),
-                        onDismiss = {},
+                        onDismiss = null,
                     )
                 }
 
@@ -315,31 +316,35 @@ private fun LiveVideoSurface(
                     strokeWidth = 1f,
                 )
             }
-            drawCircle(
-                color = InnovvColors.AccentPrimary.copy(alpha = 0.12f),
-                radius = size.minDimension * 0.22f,
-                center = Offset(size.width * 0.5f, size.height * 0.5f),
+        }
+
+        if (!paused && state.streamUrl != null) {
+            PlatformLiveVideo(
+                url = state.streamUrl,
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
-        Column(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                text = if (paused) "Preview paused" else "Live 2K RTSP Video Stream",
-                color = InnovvColors.TextSecondary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = if (paused) "Recording continues on the camera" else "73 km/h • GPS Lock • XYZ Graph",
-                color = InnovvColors.AccentPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
+        if (state.streamUrl == null || paused) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = if (paused) "Preview paused" else "Live 2K RTSP Video Stream",
+                    color = InnovvColors.TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = if (paused) "Recording continues on the camera" else "73 km/h • GPS Lock • XYZ Graph",
+                    color = InnovvColors.AccentPrimary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
 
         Row(
@@ -617,7 +622,11 @@ private fun TelemetryRow(state: DashboardUiState) {
         TelemetryCard(
             label = "Storage Health",
             value = when (storage) {
-                is StorageState.Ready -> "${storage.usedBytes?.asGigabytes() ?: "—"} / ${storage.totalBytes?.asGigabytes() ?: "—"}G"
+                is StorageState.Ready -> if (storage.usedBytes != null && storage.totalBytes != null) {
+                    "${storage.usedBytes.asGigabytes()} / ${storage.totalBytes.asGigabytes()}G"
+                } else {
+                    "${storage.freeBytes.asGigabytes()}G free"
+                }
                 StorageState.NoCard -> "No SD"
                 StorageState.CardError -> "SD Error"
                 StorageState.Unknown -> "No SD"
