@@ -1,5 +1,8 @@
 # INNOVV Open Cam
 
+[![CI](https://github.com/zoloft/innovv-app/actions/workflows/ci.yml/badge.svg)](https://github.com/zoloft/innovv-app/actions/workflows/ci.yml)
+[![Release](https://github.com/zoloft/innovv-app/actions/workflows/release.yml/badge.svg)](https://github.com/zoloft/innovv-app/actions/workflows/release.yml)
+
 An open-source Kotlin Multiplatform replacement for the INNOVV K5/K7 dashcam
 companion app. The UI is shared between Android and iOS with Compose
 Multiplatform; the camera protocol is provided by the sibling
@@ -153,6 +156,52 @@ configuration entitlements are declared in the Xcode project/Info.plist.
 - **File list truncation:** the camera can truncate large `3015` responses; v1
   shows a retryable error rather than implementing FTP/TFTP.
 - **K7:** the SDK and command mapping are K5-first.
+
+## CI and releases
+
+Two GitHub Actions workflows are included:
+
+- `.github/workflows/ci.yml` runs on pushes to `main` and pull requests. It builds
+  the Android debug APK, runs unit tests and lint, compiles the iOS Kotlin/Native
+  framework, and builds the iOS simulator app.
+- `.github/workflows/release.yml` runs when a tag matching `v*` is pushed. It builds
+  the Android release APK/AAB, an installable debug APK, an iOS simulator app, and
+  an unsigned iOS device archive, then publishes them to a GitHub Release.
+
+Create a release with:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The tag version becomes `versionName` (`v0.1.0` → `0.1.0`); the GitHub run number is
+used as the Android `versionCode`.
+
+### Android signing
+
+The release workflow produces an unsigned release APK/AAB unless these repository
+secrets are configured:
+
+| Secret | Purpose |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded release keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias |
+| `ANDROID_KEY_PASSWORD` | Key password |
+
+A debug-signed APK is always included for testing.
+
+### iOS packaging
+
+The workflow attaches an iOS **simulator** app and an unsigned `.xcarchive`. A
+signed device IPA requires Apple certificate/provisioning-profile secrets and is
+not automated yet. This is intentional: unsigned iOS artifacts are useful for
+inspection and local signing, but they are not installable on a physical device.
+
+Both workflows clone `https://github.com/zoloft/innovv-sdk.git` into the sibling
+`../sdk` directory expected by the Gradle composite build. If the SDK repository is
+private, add a checkout token or change the clone URL.
 
 ## License
 
