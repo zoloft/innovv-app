@@ -1,4 +1,4 @@
-# INNOVV Open Cam
+# OpenDash for INNOVV
 
 [![CI](https://github.com/zoloft/innovv-app/actions/workflows/ci.yml/badge.svg)](https://github.com/zoloft/innovv-app/actions/workflows/ci.yml)
 [![Release](https://github.com/zoloft/innovv-app/actions/workflows/release.yml/badge.svg)](https://github.com/zoloft/innovv-app/actions/workflows/release.yml)

@@ -273,7 +273,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: INNOVV Open Cam ${{ github.ref_name }}
+          name: OpenDash for INNOVV ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           append_body: true

@@ -127,7 +127,7 @@ fun DashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(InnovvDimens.sectionGap),
             ) {
                 DashboardTopBar(
-                    title = "INNOVV Open-Source Cam",
+                    title = "OpenDash for INNOVV",
                     connection = state.connection,
                     onSettings = onSettings,
                 )
