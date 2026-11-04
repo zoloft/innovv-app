@@ -12,8 +12,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.video.VideoFrameMetadataListener
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -30,9 +32,14 @@ actual fun PlatformLiveVideo(
     val context = LocalContext.current
     val player = remember(url) {
         ExoPlayer.Builder(context).build().apply {
-            val source = RtspMediaSource.Factory()
-                .setForceUseRtpTcp(true)
-                .createMediaSource(MediaItem.fromUri(url))
+            val source = if (url.startsWith("rtsp", ignoreCase = true)) {
+                RtspMediaSource.Factory()
+                    .setForceUseRtpTcp(true)
+                    .createMediaSource(MediaItem.fromUri(url))
+            } else {
+                ProgressiveMediaSource.Factory(DefaultDataSource.Factory(context))
+                    .createMediaSource(MediaItem.fromUri(url))
+            }
             setMediaSource(source)
             prepare()
             playWhenReady = true
