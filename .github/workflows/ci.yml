@@ -17,23 +17,25 @@ permissions:
 jobs:
   android:
     name: Android build, tests, lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - name: Check out app
         uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android platform
-        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+      - name: Configure Android SDK
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
 
       - name: Check out SDK sibling
         run: git clone --depth 1 https://github.com/zoloft/innovv-sdk.git ../sdk
@@ -48,14 +50,14 @@ jobs:
 
   ios:
     name: iOS simulator build
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - name: Check out app
         uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -71,8 +73,13 @@ jobs:
           chmod +x gradlew
           ./gradlew :composeApp:compileKotlinIosSimulatorArm64
 
+      - name: Install iOS simulator platform
+        run: sudo xcodebuild -downloadPlatform iOS
+
       - name: Build iOS simulator app
         run: |
+          mkdir -p build
+          set -o pipefail
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
@@ -83,4 +90,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
-            build
+            build 2>&1 | tee build/ios-build.log
+
+      - name: Upload iOS build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: build/ios-build.log
+          if-no-files-found: warn
