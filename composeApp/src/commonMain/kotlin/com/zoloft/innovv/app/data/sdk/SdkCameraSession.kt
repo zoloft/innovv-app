@@ -141,7 +141,10 @@ class SdkCameraSession(
     }
 
     private suspend fun discoverAndConnect(startedAt: Long) {
-        val currentSsid = binder.currentSsid()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+        val currentSsid = runCatching { binder.currentSsid() }
+            .getOrNull()
+            ?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+        debugLog?.logInfo("Discovery current Wi-Fi: ${currentSsid ?: "unknown"}")
         val binding = runCatching { binder.bind() }.getOrNull()
         if (binding is NetworkBindingResult.Success) {
             updateConnecting(
@@ -151,6 +154,7 @@ class SdkCameraSession(
                 canCancel = true,
             )
             if (probeCamera()) {
+                debugLog?.logInfo("INNOVV heartbeat confirmed on current network")
                 joinAndHandshake(
                     ssid = currentSsid ?: "camera",
                     passphrase = null,
@@ -163,9 +167,13 @@ class SdkCameraSession(
 
         val networks = runCatching { binder.scanNetworks() }.getOrElse { emptyList() }
         val innovvNetworks = networks.filter { isInnovvSsid(it.ssid) }
+        debugLog?.logInfo(
+            "Discovery scan: ${networks.size} network(s), ${innovvNetworks.size} INNOVV candidate(s)",
+        )
         when {
             innovvNetworks.size == 1 -> {
                 val selected = innovvNetworks.single()
+                debugLog?.logInfo("Selected INNOVV network ${selected.ssid}")
                 joinAndHandshake(
                     ssid = selected.ssid,
                     passphrase = null,
@@ -174,6 +182,7 @@ class SdkCameraSession(
                 )
             }
             innovvNetworks.size > 1 -> {
+                debugLog?.logInfo("Multiple INNOVV networks found; asking user to select")
                 _connection.value = CameraConnectionState.NeedsNetworkSelection(
                     networks = innovvNetworks,
                     reason = NetworkSelectionReason.MULTIPLE_INNOVV_NETWORKS,
@@ -181,6 +190,7 @@ class SdkCameraSession(
                 )
             }
             else -> {
+                debugLog?.logInfo("No INNOVV network found automatically; asking user to select")
                 _connection.value = CameraConnectionState.NeedsNetworkSelection(
                     networks = networks,
                     reason = if (networks.isEmpty()) {
@@ -231,7 +241,7 @@ class SdkCameraSession(
         )
 
         if (!alreadyBound) {
-            val current = binder.currentSsid()
+            val current = runCatching { binder.currentSsid() }.getOrNull()
             val binding = if (current?.contains(ssid, ignoreCase = true) == true) {
                 binder.bind()
             } else {
@@ -285,6 +295,7 @@ class SdkCameraSession(
             firmwareVersion = info.firmwareVersion,
             stream = StreamState.LIVE,
         )
+        debugLog?.logInfo("Connected to $ssid (${info.firmwareVersion})")
         startEventCollector(newClient)
         startTelemetryCollector(newClient)
         refreshTelemetryInternal(newClient)
