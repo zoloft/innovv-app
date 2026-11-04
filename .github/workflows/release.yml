@@ -108,6 +108,21 @@ jobs:
       - name: Derive version from tag
         run: echo "VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
+      - name: Detect iOS signing secrets
+        id: ios_signing
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$IOS_CERTIFICATE_BASE64" ] && [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Apple signing secrets detected."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No Apple signing secrets configured; producing simulator and unsigned archive only."
+          fi
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -138,6 +153,91 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent \
             build/ios-sim/Build/Products/Release-iphonesimulator/iosApp.app \
             "artifacts/ios/innovv-app-${VERSION_NAME}-ios-simulator.zip"
+
+      - name: Import Apple signing identity
+        if: steps.ios_signing.outputs.available == 'true'
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_PROVISIONING_PROFILE_SPECIFIER: ${{ secrets.IOS_PROVISIONING_PROFILE_SPECIFIER }}
+        run: |
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+
+          echo "$IOS_CERTIFICATE_BASE64" | base64 -D > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k build.keychain             -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s             -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
+          cp "$RUNNER_TEMP/profile.mobileprovision" \
+            "$HOME/Library/MobileDevice/Provisioning Profiles/"
+
+          if [ -n "$IOS_PROVISIONING_PROFILE_SPECIFIER" ]; then
+            echo "IOS_PROFILE_NAME=$IOS_PROVISIONING_PROFILE_SPECIFIER" >> "$GITHUB_ENV"
+          else
+            PROFILE_NAME=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" \
+              | plutil -extract Name raw -)
+            echo "IOS_PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build signed iOS archive
+        if: steps.ios_signing.outputs.available == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_CODE_SIGN_IDENTITY: ${{ secrets.IOS_CODE_SIGN_IDENTITY || 'Apple Distribution' }}
+        run: |
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/iosApp-signed.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$IOS_CODE_SIGN_IDENTITY" \
+            PROVISIONING_PROFILE_SPECIFIER="$IOS_PROFILE_NAME" \
+            MARKETING_VERSION="$VERSION_NAME" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            archive
+
+      - name: Export signed IPA
+        if: steps.ios_signing.outputs.available == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_EXPORT_METHOD: ${{ secrets.IOS_EXPORT_METHOD || 'app-store-connect' }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${IOS_EXPORT_METHOD}</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.zoloft.innovv.app</key>
+              <string>${IOS_PROFILE_NAME}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/iosApp-signed.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          cp build/ipa/*.ipa "artifacts/ios/innovv-app-${VERSION_NAME}-ios.ipa"
 
       - name: Build unsigned iOS device archive
         continue-on-error: true
@@ -201,9 +301,8 @@ jobs:
 
             - **Android APK** — installable debug build plus release APK/AAB.
             - **iOS simulator app** — runnable in Xcode Simulator.
-            - **iOS unsigned archive** — for inspection/signing; a signed device IPA
-              requires Apple signing credentials and is not produced by this
-              workflow yet.
+            - **iOS unsigned archive** — for inspection/local signing.
+            - **iOS IPA** — produced when the Apple signing secrets are configured.
 
             Android release artifacts are signed when the
             `ANDROID_KEYSTORE_*` repository secrets are configured. Otherwise the

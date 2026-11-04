@@ -192,12 +192,25 @@ secrets are configured:
 
 A debug-signed APK is always included for testing.
 
-### iOS packaging
+### iOS signing and packaging
 
-The workflow attaches an iOS **simulator** app and an unsigned `.xcarchive`. A
-signed device IPA requires Apple certificate/provisioning-profile secrets and is
-not automated yet. This is intentional: unsigned iOS artifacts are useful for
-inspection and local signing, but they are not installable on a physical device.
+The workflow always attaches an iOS **simulator** app and an unsigned `.xcarchive`.
+When Apple signing secrets are configured, it also builds and exports a signed
+device IPA:
+
+| Secret | Purpose |
+|---|---|
+| `IOS_CERTIFICATE_BASE64` | Base64-encoded Apple Distribution `.p12` |
+| `IOS_CERTIFICATE_PASSWORD` | Certificate password |
+| `IOS_PROVISIONING_PROFILE_BASE64` | Base64-encoded `.mobileprovision` |
+| `APPLE_TEAM_ID` | Apple Developer Team ID |
+| `IOS_PROVISIONING_PROFILE_SPECIFIER` | Optional profile name override |
+| `IOS_CODE_SIGN_IDENTITY` | Optional identity override (default `Apple Distribution`) |
+| `IOS_EXPORT_METHOD` | Optional export method (default `app-store-connect`) |
+
+The provisioning profile must include the Hotspot Configuration entitlement used
+by `NEHotspotConfiguration`. Unsigned iOS artifacts remain useful for inspection
+and local signing, but are not installable on a physical device.
 
 Both workflows clone `https://github.com/zoloft/innovv-sdk.git` into the sibling
 `../sdk` directory expected by the Gradle composite build. If the SDK repository is
