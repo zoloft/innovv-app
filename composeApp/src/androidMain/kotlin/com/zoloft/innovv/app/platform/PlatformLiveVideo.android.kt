@@ -13,7 +13,8 @@ import androidx.media3.exoplayer.rtsp.RtspMediaSource
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 
-@OptIn(UnstableApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
+@kotlin.OptIn(UnstableApi::class)
 @Composable
 actual fun PlatformLiveVideo(url: String, modifier: Modifier) {
     val context = LocalContext.current

@@ -196,6 +196,11 @@ class SdkCameraSession(
     override suspend fun setChannel(channel: CameraChannel) {
         write { client ->
             client.setLiveViewSource(if (channel == CameraChannel.FRONT) 0 else 1)
+            delay(250)
+            val links = runCatching { client.getLiveView() }.getOrNull()
+            if (links != null) {
+                _liveLinks.value = LiveStreamLinks(links.movieUrl, links.photoUrl)
+            }
         }
     }
 

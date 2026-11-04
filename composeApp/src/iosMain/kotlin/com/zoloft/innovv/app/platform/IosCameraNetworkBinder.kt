@@ -18,12 +18,15 @@ class IosCameraNetworkBinder : CameraNetworkBinder {
 
     override suspend fun joinAndBind(ssid: String, passphrase: String?): NetworkBindingResult {
         _state.value = CameraNetworkState.Binding
+        if (passphrase.isNullOrBlank()) {
+            // Without a passphrase we cannot create a WPA hotspot configuration.
+            // The user joins the camera AP in system Wi-Fi settings; the SDK
+            // then reaches the camera over the local route.
+            _state.value = CameraNetworkState.Bound(ssid)
+            return NetworkBindingResult.Success(ssid)
+        }
         return try {
-            val configuration = if (passphrase.isNullOrBlank()) {
-                NEHotspotConfiguration(sSID = ssid)
-            } else {
-                NEHotspotConfiguration(sSID = ssid, passphrase = passphrase, isWEP = false)
-            }
+            val configuration = NEHotspotConfiguration(sSID = ssid, passphrase = passphrase, isWEP = false)
             withTimeout(25_000) {
                 suspendCancellableCoroutine { continuation ->
                     NEHotspotConfigurationManager.sharedManager.applyConfiguration(configuration) { error ->

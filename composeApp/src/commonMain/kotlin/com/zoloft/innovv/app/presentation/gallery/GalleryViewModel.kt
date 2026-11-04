@@ -34,10 +34,10 @@ class GalleryViewModel(
     private var loaded = false
 
     fun load() {
+        viewModelScope.launch { camera.pausePreview() }
         if (loaded) return
         loaded = true
         viewModelScope.launch {
-            camera.pausePreview()
             _state.update { it.copy(isLoading = true, error = null) }
             repository.loadClips()
                 .onSuccess { clips ->

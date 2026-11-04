@@ -10,6 +10,7 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.provider.Settings
 import android.content.Intent
+import androidx.annotation.RequiresApi
 import com.zoloft.innovv.app.InnovvApplication
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private suspend fun joinWithSpecifier(ssid: String, passphrase: String?): NetworkBindingResult {
         val specifier = WifiNetworkSpecifier.Builder()
             .setSsid(ssid)

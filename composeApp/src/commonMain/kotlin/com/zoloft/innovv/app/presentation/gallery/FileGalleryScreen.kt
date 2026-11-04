@@ -558,7 +558,15 @@ private fun ClipPreviewDialog(
                             .aspectRatio(16f / 9f)
                             .clip(RoundedCornerShape(8.dp))
                             .background(InnovvColors.BackgroundPrimary.copy(alpha = 0.88f))
-                            .clickable(onClick = onTogglePiP),
+                            .clickable {
+                                onChannel(
+                                    if (preview.activeChannel == CameraChannel.FRONT) {
+                                        CameraChannel.REAR
+                                    } else {
+                                        CameraChannel.FRONT
+                                    },
+                                )
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(

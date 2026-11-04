@@ -32,12 +32,7 @@ class AndroidHaptics : Haptics {
             HapticType.WARNING -> 200
         }
         runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createOneShot(duration, amplitude))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(duration)
-            }
+            vibrator?.vibrate(VibrationEffect.createOneShot(duration, amplitude))
         }
     }
 }
