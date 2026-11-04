@@ -163,10 +163,10 @@ Two GitHub Actions workflows are included:
 
 - `.github/workflows/ci.yml` runs on pushes to `main` and pull requests. It builds
   the Android debug APK, runs unit tests and lint, compiles the iOS Kotlin/Native
-  framework, and builds the iOS simulator app.
+  framework, and builds an unsigned iOS device app.
 - `.github/workflows/release.yml` runs when a tag matching `v*` is pushed. It builds
-  the Android release APK/AAB, an installable debug APK, an iOS simulator app, and
-  an unsigned iOS device archive, then publishes them to a GitHub Release.
+  the Android release APK/AAB, an installable debug APK, and an unsigned iOS device
+  app, then publishes them to a GitHub Release.
 
 Create a release with:
 
@@ -194,9 +194,8 @@ A debug-signed APK is always included for testing.
 
 ### iOS signing and packaging
 
-The workflow always attaches an iOS **simulator** app and an unsigned `.xcarchive`.
-When Apple signing secrets are configured, it also builds and exports a signed
-device IPA:
+The workflow always attaches an unsigned iOS device `.app`. When Apple signing
+secrets are configured, it also builds and exports a signed device IPA:
 
 | Secret | Purpose |
 |---|---|

@@ -122,7 +122,7 @@ jobs:
             echo "Apple signing secrets detected."
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "No Apple signing secrets configured; producing simulator and unsigned archive only."
+            echo "No Apple signing secrets configured; producing an unsigned device app only."
           fi
 
       - name: Set up Gradle
@@ -131,49 +131,7 @@ jobs:
       - name: Compile Kotlin/Native framework
         run: |
           chmod +x gradlew
-          ./gradlew :composeApp:compileKotlinIosSimulatorArm64
-
-      - name: Install iOS simulator platform
-        continue-on-error: true
-        run: sudo xcodebuild -downloadPlatform iOS
-
-      - name: Build iOS simulator app
-        continue-on-error: true
-        run: |
-          mkdir -p build
-          set -o pipefail
-          xcodebuild \
-            -project iosApp/iosApp.xcodeproj \
-            -scheme iosApp \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/ios-sim \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_ENTITLEMENTS="" \
-            MARKETING_VERSION="$VERSION_NAME" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-            build 2>&1 | tee build/ios-build.log
-
-      - name: Upload iOS build log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build-log
-          path: build/ios-build.log
-          if-no-files-found: warn
-
-      - name: Package iOS simulator app
-        run: |
-          mkdir -p artifacts/ios
-          if [ -d build/ios-sim/Build/Products/Release-iphonesimulator/iosApp.app ]; then
-            ditto -c -k --sequesterRsrc --keepParent \
-              build/ios-sim/Build/Products/Release-iphonesimulator/iosApp.app \
-              "artifacts/ios/innovv-app-${VERSION_NAME}-ios-simulator.zip"
-          else
-            echo "Simulator app was not produced; skipping simulator package."
-          fi
+          ./gradlew :composeApp:compileKotlinIosArm64
 
       - name: Import Apple signing identity
         if: steps.ios_signing.outputs.available == 'true'
@@ -191,8 +149,10 @@ jobs:
           security default-keychain -s build.keychain
 
           echo "$IOS_CERTIFICATE_BASE64" | base64 -D > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" -k build.keychain             -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s             -k "$KEYCHAIN_PASSWORD" build.keychain
+          security import "$RUNNER_TEMP/cert.p12" -k build.keychain \
+            -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" build.keychain
 
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/profile.mobileprovision"
@@ -261,8 +221,7 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
           cp build/ipa/*.ipa "artifacts/ios/innovv-app-${VERSION_NAME}-ios.ipa"
 
-      - name: Build unsigned iOS device archive
-        continue-on-error: true
+      - name: Build unsigned iOS device app
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
@@ -270,15 +229,15 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
-            -archivePath build/iosApp.xcarchive \
+            -derivedDataPath build/ios-device \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             MARKETING_VERSION="$VERSION_NAME" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-            archive
+            build
           ditto -c -k --sequesterRsrc --keepParent \
-            build/iosApp.xcarchive \
-            "artifacts/ios/innovv-app-${VERSION_NAME}-ios-unsigned.xcarchive.zip"
+            build/ios-device/Build/Products/Release-iphoneos/iosApp.app \
+            "artifacts/ios/innovv-app-${VERSION_NAME}-ios-device-unsigned.zip"
 
       - name: Upload iOS artifacts
         uses: actions/upload-artifact@v4
@@ -322,8 +281,7 @@ jobs:
             ## Downloads
 
             - **Android APK** — installable debug build plus release APK/AAB.
-            - **iOS simulator app** — runnable in Xcode Simulator.
-            - **iOS unsigned archive** — for inspection/local signing.
+            - **iOS unsigned device app** — build artifact for inspection/local signing.
             - **iOS IPA** — produced when the Apple signing secrets are configured.
 
             Android release artifacts are signed when the
