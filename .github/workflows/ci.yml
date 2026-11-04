@@ -71,12 +71,9 @@ jobs:
       - name: Compile Kotlin/Native framework
         run: |
           chmod +x gradlew
-          ./gradlew :composeApp:compileKotlinIosSimulatorArm64
+          ./gradlew :composeApp:compileKotlinIosArm64
 
-      - name: Install iOS simulator platform
-        run: sudo xcodebuild -downloadPlatform iOS
-
-      - name: Build iOS simulator app
+      - name: Build iOS app (unsigned device build)
         run: |
           mkdir -p build
           set -o pipefail
@@ -84,9 +81,9 @@ jobs:
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
             -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/ios-sim \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios-device \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
