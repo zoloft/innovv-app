@@ -65,21 +65,21 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew :composeApp:assembleRelease :composeApp:bundleRelease :composeApp:assembleDebug
+          ./gradlew :androidApp:assembleRelease :androidApp:bundleRelease :androidApp:assembleDebug
 
       - name: Collect Android artifacts
         run: |
           mkdir -p artifacts/android
-          for apk in composeApp/build/outputs/apk/release/*.apk; do
+          for apk in androidApp/build/outputs/apk/release/*.apk; do
             if [[ "$apk" == *unsigned* ]]; then
               cp "$apk" "artifacts/android/innovv-app-${VERSION_NAME}-android-release-unsigned.apk"
             else
               cp "$apk" "artifacts/android/innovv-app-${VERSION_NAME}-android-release.apk"
             fi
           done
-          cp composeApp/build/outputs/bundle/release/*.aab \
+          cp androidApp/build/outputs/bundle/release/*.aab \
             "artifacts/android/innovv-app-${VERSION_NAME}-android-release.aab"
-          cp composeApp/build/outputs/apk/debug/*.apk \
+          cp androidApp/build/outputs/apk/debug/*.apk \
             "artifacts/android/innovv-app-${VERSION_NAME}-android-debug.apk"
           ls -lh artifacts/android
 

@@ -46,7 +46,7 @@ jobs:
       - name: Build and test
         run: |
           chmod +x gradlew
-          ./gradlew :composeApp:assembleDebug :composeApp:testDebugUnitTest :composeApp:lintDebug
+          ./gradlew :androidApp:assembleDebug :composeApp:testAndroidHostTest :androidApp:lintDebug
 
   ios:
     name: iOS device build

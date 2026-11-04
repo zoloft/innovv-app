@@ -5,10 +5,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import com.zoloft.innovv.app.InnovvApplication
 
 class AndroidHaptics : Haptics {
-    private val context: Context = InnovvApplication.instance.applicationContext
+    private val context: Context = AndroidPlatformContext.application.applicationContext
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
     } else {

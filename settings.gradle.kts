@@ -16,6 +16,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "innovv-open-camera"
 include(":composeApp")
+include(":androidApp")
 
 // Local development: build the sibling SDK from source.
 includeBuild("../sdk") {

@@ -13,7 +13,6 @@ import android.os.Build
 import android.provider.Settings
 import android.content.Intent
 import androidx.annotation.RequiresApi
-import com.zoloft.innovv.app.InnovvApplication
 import com.zoloft.innovv.app.domain.model.WifiNetworkInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,7 +25,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
 class AndroidCameraNetworkBinder : CameraNetworkBinder {
-    private val context: Context = InnovvApplication.instance.applicationContext
+    private val context: Context = AndroidPlatformContext.application.applicationContext
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val wifiManager =

@@ -48,10 +48,12 @@ integration point; see [Known limitations](#known-limitations).
 
 ```
 app/
-├── composeApp/                     # KMP app module (Android + iOS)
+├── androidApp/                     # Android application entry point (AGP 9)
+│   └── src/main/                   # MainActivity, Application, manifest, resources
+├── composeApp/                     # Shared KMP library (Android + iOS)
 │   └── src/
 │       ├── commonMain/             # UI, state models, repositories, demo data
-│       ├── androidMain/            # Activity, Wi-Fi binder, Media3 player, files
+│       ├── androidMain/            # Wi-Fi binder, Media3 player, file storage
 │       ├── iosMain/                # iOS view controller, hotspot binder, files
 │       └── commonTest/             # Formatter and state-model tests
 ├── iosApp/                         # SwiftUI shell + Xcode project
@@ -88,17 +90,25 @@ Requirements:
 
 ```bash
 # Android debug APK
-./gradlew :composeApp:assembleDebug
+./gradlew :androidApp:assembleDebug
 
-# Android unit tests
-./gradlew :composeApp:testDebugUnitTest
+# Shared KMP tests (Android host target)
+./gradlew :composeApp:testAndroidHostTest
+
+# Android lint
+./gradlew :androidApp:lintDebug
 
 # Compile the iOS Kotlin framework (Linux can compile the klib)
-./gradlew :composeApp:compileKotlinIosSimulatorArm64
+./gradlew :composeApp:compileKotlinIosArm64
 ```
 
 The APK is written to
-`composeApp/build/outputs/apk/debug/composeApp-debug.apk`.
+`androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+
+The project uses the AGP 9 structure: `composeApp` is a KMP library using
+`com.android.kotlin.multiplatform.library`, and `androidApp` is a pure Android
+application module. This avoids the Kotlin/AGP configuration conflict that
+produces "Kotlin not configured" in Android Studio.
 
 ### iOS
 

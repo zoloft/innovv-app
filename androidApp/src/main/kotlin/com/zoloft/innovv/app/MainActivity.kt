@@ -8,7 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(
@@ -33,7 +32,7 @@ class MainActivity : ComponentActivity() {
                 add(Manifest.permission.ACCESS_FINE_LOCATION)
             }
         }.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
         }
         if (permissions.isNotEmpty()) {
             permissionLauncher.launch(permissions.toTypedArray())
