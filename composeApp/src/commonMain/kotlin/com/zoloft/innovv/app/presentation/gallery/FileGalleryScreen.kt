@@ -78,6 +78,8 @@ import com.zoloft.innovv.app.domain.model.GalleryUiState
 import com.zoloft.innovv.app.domain.model.MediaClip
 import com.zoloft.innovv.app.domain.model.PreviewState
 import com.zoloft.innovv.app.domain.model.TransferState
+import com.zoloft.innovv.app.platform.PlatformLiveVideo
+import com.zoloft.innovv.app.platform.isPlatformVideoPlaybackAvailable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 
@@ -528,6 +530,12 @@ private fun ClipPreviewDialog(
                 }
             }
 
+            val videoUrl = if (preview.activeChannel == CameraChannel.FRONT) {
+                clip.front?.url
+            } else {
+                clip.rear?.url
+            }
+            val canPlay = isPlatformVideoPlaybackAvailable && videoUrl?.startsWith("http") == true
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -542,13 +550,20 @@ private fun ClipPreviewDialog(
                         ),
                     )
                 }
-                Text(
-                    text = "${if (preview.activeChannel == CameraChannel.FRONT) "FRONT" else "REAR"} • ${clip.resolutionLabel ?: "Video"}",
-                    color = InnovvColors.TextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                if (canPlay && videoUrl != null) {
+                    PlatformLiveVideo(
+                        url = videoUrl,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Text(
+                        text = "${if (preview.activeChannel == CameraChannel.FRONT) "FRONT" else "REAR"} • ${clip.resolutionLabel ?: "Video"}",
+                        color = InnovvColors.TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+                }
                 if (preview.isPiPVisible) {
                     Box(
                         modifier = Modifier
