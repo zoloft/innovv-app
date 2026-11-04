@@ -138,12 +138,15 @@ Android:
 
 - `INTERNET`, `ACCESS_NETWORK_STATE`, `CHANGE_NETWORK_STATE`;
 - `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`;
-- `ACCESS_FINE_LOCATION` on Android 12 and below;
+- `ACCESS_COARSE_LOCATION` and `ACCESS_FINE_LOCATION` on all Android versions;
 - `NEARBY_WIFI_DEVICES` on Android 13+;
 - `VIBRATE`.
 
-The app requests the Wi-Fi permission at launch. Cleartext HTTP is allowed only
-for `192.168.1.254` through `network_security_config.xml`.
+Precise location is still required by Android for `WifiManager.startScan()` and
+`getScanResults()` even on Android 13+, so the app requests it at launch. Without
+it, the app can connect to the current network but cannot discover other
+INNOVV SSIDs or read the current SSID. Cleartext HTTP is allowed only for
+`192.168.1.254` through `network_security_config.xml`.
 
 iOS: local network, motion (for the phone G-force fallback), and hotspot
 configuration entitlements are declared in the Xcode project/Info.plist.
