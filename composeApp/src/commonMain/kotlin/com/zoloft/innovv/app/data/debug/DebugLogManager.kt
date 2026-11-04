@@ -38,7 +38,7 @@ class DebugLogManager(
     private val _state = MutableStateFlow(
         DebugLogUiState(
             enabled = isDebugBuild && (preferences.getBooleanOrNull(PREF_ENABLED) ?: true),
-            text = loadRecent(),
+            text = "",
             isDebugBuild = isDebugBuild,
         ),
     )
@@ -46,6 +46,11 @@ class DebugLogManager(
 
     init {
         scope.launch {
+            loadRecent().lineSequence()
+                .filter { it.isNotBlank() }
+                .forEach { recentLines.addLast(it) }
+            while (recentLines.size > MAX_RECENT_LINES) recentLines.removeFirst()
+            _state.update { it.copy(text = recentLines.joinToString("\n")) }
             FileSystem.SYSTEM.createDirectories(logFile.parent ?: ".".toPath())
             for (line in queue) {
                 if (!_state.value.enabled) continue
