@@ -149,14 +149,14 @@ class SdkCameraSession(
         if (binding is NetworkBindingResult.Success) {
             updateConnecting(
                 startedAt = startedAt,
-                ssid = currentSsid ?: "camera",
+                ssid = currentSsid ?: "INNOVV camera",
                 step = ConnectionStep.VERIFYING_NETWORK,
                 canCancel = true,
             )
             if (probeCamera()) {
                 debugLog?.logInfo("INNOVV heartbeat confirmed on current network")
                 joinAndHandshake(
-                    ssid = currentSsid ?: "camera",
+                    ssid = currentSsid ?: "INNOVV camera",
                     passphrase = null,
                     startedAt = startedAt,
                     alreadyBound = true,
