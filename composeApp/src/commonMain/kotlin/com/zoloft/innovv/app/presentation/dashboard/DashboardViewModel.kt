@@ -10,6 +10,9 @@ import com.zoloft.innovv.app.domain.model.DashboardUiState
 import com.zoloft.innovv.app.domain.model.HandshakeUiState
 import com.zoloft.innovv.app.domain.model.QuickActionsState
 import com.zoloft.innovv.app.domain.model.StreamState
+import com.zoloft.innovv.app.platform.HapticType
+import com.zoloft.innovv.app.platform.Haptics
+import com.zoloft.innovv.app.platform.createHaptics
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +21,7 @@ import kotlinx.coroutines.launch
 
 class DashboardViewModel(
     private val camera: CameraController,
+    private val haptics: Haptics = createHaptics(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(DashboardUiState())
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
@@ -92,6 +96,7 @@ class DashboardViewModel(
                 )
             }
             val ok = camera.captureSnapshot()
+            if (ok) haptics.perform(HapticType.LIGHT)
             _state.update {
                 it.copy(
                     quickActions = it.quickActions.copy(snapshotInFlight = false),
@@ -112,6 +117,7 @@ class DashboardViewModel(
                 it.copy(quickActions = it.quickActions.copy(lockEventInFlight = true))
             }
             val ok = camera.lockEvent()
+            if (ok) haptics.perform(HapticType.HEAVY) else haptics.perform(HapticType.WARNING)
             _state.update {
                 it.copy(
                     quickActions = it.quickActions.copy(lockEventInFlight = false),

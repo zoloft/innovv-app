@@ -10,6 +10,7 @@ import com.zoloft.innovv.app.data.sdk.SdkSettingsRepository
 import com.zoloft.innovv.app.domain.CameraController
 import com.zoloft.innovv.app.domain.GalleryRepository
 import com.zoloft.innovv.app.domain.SettingsRepository
+import com.zoloft.innovv.app.platform.createHaptics
 import com.zoloft.innovv.app.presentation.dashboard.DashboardViewModel
 import com.zoloft.innovv.app.presentation.gallery.GalleryViewModel
 import com.zoloft.innovv.app.presentation.settings.SettingsViewModel
@@ -25,7 +26,7 @@ class AppContainer(
     val settingsRepository: SettingsRepository = sdkSession?.let { SdkSettingsRepository(it) }
         ?: DemoSettingsRepository()
 
-    val dashboard = DashboardViewModel(camera)
+    val dashboard = DashboardViewModel(camera, createHaptics())
     val gallery = GalleryViewModel(camera, galleryRepository)
     val settings = SettingsViewModel(camera, settingsRepository, SettingsCache())
 }

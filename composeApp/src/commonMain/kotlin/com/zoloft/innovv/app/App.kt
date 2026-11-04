@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -111,7 +112,13 @@ fun App() {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(16.dp),
-            )
+            ) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = InnovvColors.SurfaceCard,
+                    contentColor = InnovvColors.TextPrimary,
+                )
+            }
         }
 
         if (showSettings) {

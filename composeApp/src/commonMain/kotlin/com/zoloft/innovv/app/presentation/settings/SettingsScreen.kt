@@ -50,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,6 +89,7 @@ fun SettingsModalSheet(
     onDismissError: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val online = state.access is SettingsAccess.Online
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showFormatDialog by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<SettingsPicker?>(null) }
@@ -146,17 +149,23 @@ fun SettingsModalSheet(
                 SettingsRow(
                     label = "Video Resolution",
                     value = state.draft.videoResolution.label,
-                    onClick = { picker = SettingsPicker.Resolution },
+                    enabled = online,
+                    locked = !online,
+                    onClick = { if (online) picker = SettingsPicker.Resolution },
                 )
                 SettingsRow(
                     label = "Loop Recording",
                     value = state.draft.loop.label,
-                    onClick = { picker = SettingsPicker.Loop },
+                    enabled = online,
+                    locked = !online,
+                    onClick = { if (online) picker = SettingsPicker.Loop },
                 )
                 SettingsRow(
                     label = "Watermark Overlay",
                     value = state.draft.watermark.summary,
-                    onClick = { picker = SettingsPicker.Watermark },
+                    enabled = online,
+                    locked = !online,
+                    onClick = { if (online) picker = SettingsPicker.Watermark },
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -168,13 +177,19 @@ fun SettingsModalSheet(
                 SettingsRow(
                     label = "G-Sensor Sensitivity",
                     value = state.draft.gSensor.label,
-                    onClick = { picker = SettingsPicker.GSensor },
+                    enabled = online,
+                    locked = !online,
+                    onClick = { if (online) picker = SettingsPicker.GSensor },
                 )
                 SettingsRow(
                     label = "Parking Mode",
                     subtitle = "Battery drain protection enabled",
                     value = if (state.draft.parkingMode) "Active (12.2V Cutoff)" else "Off",
-                    onClick = { onUpdateDraft { it.copy(parkingMode = !it.parkingMode) } },
+                    enabled = online,
+                    locked = !online,
+                    onClick = {
+                        if (online) onUpdateDraft { it.copy(parkingMode = !it.parkingMode) }
+                    },
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -186,10 +201,10 @@ fun SettingsModalSheet(
                 SettingsRow(
                     label = "Card Utility: Format SD",
                     value = formatStorage(state.storageUsedBytes, state.storageTotalBytes, state.storageFreeBytes),
-                    enabled = state.isOnline,
-                    locked = !state.isOnline,
+                    enabled = online,
+                    locked = !online,
                     onClick = {
-                        if (state.isOnline) showFormatDialog = true
+                        if (online) showFormatDialog = true
                     },
                 )
                 SettingsRow(
@@ -582,40 +597,45 @@ private fun DiagnosticsDialog(
 
 @Composable
 private fun ApplyOverlay(state: ApplyState.Applying) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.62f)),
-        contentAlignment = Alignment.Center,
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .padding(24.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(InnovvColors.SurfaceCard)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.62f)),
+            contentAlignment = Alignment.Center,
         ) {
-            CircularProgressIndicator(color = InnovvColors.AccentPrimary, strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
-            Text(
-                text = "Applying settings to camera...",
-                color = InnovvColors.TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = state.step.label,
-                color = InnovvColors.TextSecondary,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-            )
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth(),
-                color = InnovvColors.AccentPrimary,
-                trackColor = InnovvColors.BackgroundPrimary,
-            )
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(InnovvColors.SurfaceCard)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                CircularProgressIndicator(color = InnovvColors.AccentPrimary, strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
+                Text(
+                    text = "Applying settings to camera...",
+                    color = InnovvColors.TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = state.step.label,
+                    color = InnovvColors.TextSecondary,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                )
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = InnovvColors.AccentPrimary,
+                    trackColor = InnovvColors.BackgroundPrimary,
+                )
+            }
         }
     }
 }

@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -209,7 +210,7 @@ fun FileGalleryScreen(
             }
         }
 
-        state.transfer?.let { transfer ->
+        state.transfer?.takeUnless { it is TransferState.Complete }?.let { transfer ->
             TransferOverlay(
                 transfer = transfer,
                 onDismiss = onDismissTransfer,
@@ -235,7 +236,13 @@ fun FileGalleryScreen(
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-        )
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = InnovvColors.SurfaceCard,
+                contentColor = InnovvColors.TextPrimary,
+            )
+        }
     }
 }
 

@@ -99,6 +99,7 @@ class SettingsViewModel(
                         apply = ApplyState.Success,
                     )
                 }
+                cache.save(_state.value)
                 _events.tryEmit(
                     SettingsEvent.Message(
                         "Preferences saved. Hardware settings require a camera connection.",

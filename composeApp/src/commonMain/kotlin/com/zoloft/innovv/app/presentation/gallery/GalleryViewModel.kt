@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -197,6 +198,10 @@ class GalleryViewModel(
                     )
                 }
                 _messages.tryEmit("Downloaded ${clips.size} item(s)")
+                delay(1_500)
+                _state.update { current ->
+                    if (current.transfer is TransferState.Complete) current.copy(transfer = null) else current
+                }
             }.onFailure { failure ->
                 _state.update {
                     it.copy(transfer = TransferState.Failed(failure.message ?: "Download failed"))
@@ -228,6 +233,10 @@ class GalleryViewModel(
                     )
                 }
                 _messages.tryEmit("Deleted ${clips.size} item(s) from the camera")
+                delay(1_500)
+                _state.update { current ->
+                    if (current.transfer is TransferState.Complete) current.copy(transfer = null) else current
+                }
             }.onFailure { failure ->
                 _state.update {
                     it.copy(transfer = TransferState.Failed(failure.message ?: "Delete failed"))
