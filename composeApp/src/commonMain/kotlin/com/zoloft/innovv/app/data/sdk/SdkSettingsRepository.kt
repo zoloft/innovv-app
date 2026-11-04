@@ -15,6 +15,7 @@ import com.zoloft.innovv.sdk.model.CameraSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 class SdkSettingsRepository(
     private val session: SdkCameraSession,
@@ -85,7 +86,7 @@ class SdkSettingsRepository(
                     client.formatSdCard()
                     // The camera rebuilds its filesystem asynchronously. Give it a
                     // short grace period before recording is restarted.
-                    kotlinx.coroutines.delay(1_500)
+                    kotlinx.coroutines.delay(1_500.milliseconds)
                 } finally {
                     if (wasRecording) {
                         onStep("Restarting recording...")

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class GalleryViewModel(
     private val camera: CameraController,
@@ -198,7 +199,7 @@ class GalleryViewModel(
                     )
                 }
                 _messages.tryEmit("Downloaded ${clips.size} item(s)")
-                delay(1_500)
+                delay(1_500.milliseconds)
                 _state.update { current ->
                     if (current.transfer is TransferState.Complete) current.copy(transfer = null) else current
                 }
@@ -233,7 +234,7 @@ class GalleryViewModel(
                     )
                 }
                 _messages.tryEmit("Deleted ${clips.size} item(s) from the camera")
-                delay(1_500)
+                delay(1_500.milliseconds)
                 _state.update { current ->
                     if (current.transfer is TransferState.Complete) current.copy(transfer = null) else current
                 }

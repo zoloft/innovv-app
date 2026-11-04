@@ -80,6 +80,7 @@ import com.zoloft.innovv.app.domain.model.StorageState
 import com.zoloft.innovv.app.platform.PlatformLiveVideo
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun DashboardScreen(
@@ -106,7 +107,7 @@ fun DashboardScreen(
     LaunchedEffect(state.shutterFlashKey) {
         if (state.shutterFlashKey > 0) {
             flash = true
-            delay(90)
+            delay(90.milliseconds)
             flash = false
         }
     }

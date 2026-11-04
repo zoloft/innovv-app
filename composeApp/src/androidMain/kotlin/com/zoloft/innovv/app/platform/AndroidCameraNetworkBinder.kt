@@ -1,5 +1,6 @@
 package com.zoloft.innovv.app.platform
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
@@ -13,6 +14,7 @@ import android.os.Build
 import android.provider.Settings
 import android.content.Intent
 import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import com.zoloft.innovv.app.domain.model.WifiNetworkInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -23,6 +25,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.milliseconds
 
 class AndroidCameraNetworkBinder : CameraNetworkBinder {
     private val context: Context = AndroidPlatformContext.application.applicationContext
@@ -37,6 +40,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
     private var boundNetwork: Network? = null
     private var callback: ConnectivityManager.NetworkCallback? = null
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     override suspend fun joinAndBind(ssid: String, passphrase: String?): NetworkBindingResult {
         _state.value = CameraNetworkState.Binding
         return try {
@@ -70,7 +74,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
             .setNetworkSpecifier(specifier)
             .build()
 
-        return withTimeout(20_000) {
+        return withTimeout(20_000.milliseconds) {
             suspendCancellableCoroutine { continuation ->
                 val networkCallback = object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
@@ -110,6 +114,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         }
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     private suspend fun bindActiveWifi(ssid: String): NetworkBindingResult {
         // Android often keeps cellular as the "active" network when the camera
         // AP has no internet. Search all Wi-Fi networks, not just the active one.
@@ -127,6 +132,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         )
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     private fun findWifiNetwork(): Network? {
         val active = connectivityManager.activeNetwork
         val activeCapabilities = active?.let { connectivityManager.getNetworkCapabilities(it) }
@@ -139,6 +145,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         }
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     override suspend fun bind(): NetworkBindingResult {
         val ssid = currentSsid() ?: "camera"
         return bindActiveWifi(ssid)
@@ -148,7 +155,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
     override suspend fun scanNetworks(): List<WifiNetworkInfo> = withContext(Dispatchers.IO) {
         val current = currentSsid()
         runCatching { wifiManager.startScan() }
-        delay(700)
+        delay(700.milliseconds)
         @Suppress("DEPRECATION")
         val results = runCatching { wifiManager.scanResults }.getOrElse { emptyList() }
         results.asSequence()
@@ -190,6 +197,7 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         }.getOrNull()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun currentSsidFromActiveNetwork(): String? {
         val network = findWifiNetwork() ?: return null

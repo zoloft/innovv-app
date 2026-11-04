@@ -43,6 +43,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Real camera session built on the INNOVV KMP SDK.
@@ -120,7 +121,7 @@ class SdkCameraSession(
             try {
                 _connection.value = initial
                 cancelFlagJob = launch {
-                    delay(3_000)
+                    delay(3_000.milliseconds)
                     val current = _connection.value
                     if (current is CameraConnectionState.Connecting) {
                         _connection.value = current.copy(canCancel = true)
@@ -204,7 +205,7 @@ class SdkCameraSession(
         }
     }
 
-    private suspend fun probeCamera(): Boolean = withTimeoutOrNull(4_000) {
+    private suspend fun probeCamera(): Boolean = withTimeoutOrNull(4_000.milliseconds) {
         val probe = InnovvSdk.createClient(
             config.copy(
                 baseUrl = "http://192.168.1.254/",
@@ -360,7 +361,7 @@ class SdkCameraSession(
     override suspend fun setChannel(channel: CameraChannel) {
         write { client ->
             client.setLiveViewSource(if (channel == CameraChannel.FRONT) 0 else 1)
-            delay(250)
+            delay(250.milliseconds)
             val links = runCatching { client.getLiveView() }.getOrNull()
             if (links != null) {
                 _liveLinks.value = LiveStreamLinks(links.movieUrl, links.photoUrl)
@@ -467,7 +468,7 @@ class SdkCameraSession(
         telemetryJob = scope.launch {
             while (isActive) {
                 refreshTelemetryInternal(innovvClient)
-                delay(2_000)
+                delay(2_000.milliseconds)
             }
         }
     }
@@ -518,7 +519,7 @@ class SdkCameraSession(
         lastFrameAtMillis = Clock.System.now().toEpochMilliseconds()
         watchdogJob = scope.launch {
             while (isActive) {
-                delay(250)
+                delay(250.milliseconds)
                 val connected = _connection.value as? CameraConnectionState.Connected ?: continue
                 if (connected.stream != StreamState.LIVE) continue
                 if (_liveLinks.value?.movieUrl == null) continue
