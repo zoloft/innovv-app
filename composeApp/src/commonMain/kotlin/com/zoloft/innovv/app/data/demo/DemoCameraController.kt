@@ -138,6 +138,10 @@ class DemoCameraController(
 
     override fun openWifiSettings() = Unit
 
+    override fun onVideoFrame() = Unit
+
+    override fun onVideoError(message: String) = Unit
+
     private fun startTelemetry() {
         telemetryJob?.cancel()
         telemetryJob = scope.launch {

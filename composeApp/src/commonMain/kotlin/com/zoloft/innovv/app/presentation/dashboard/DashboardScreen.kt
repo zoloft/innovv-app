@@ -89,6 +89,8 @@ fun DashboardScreen(
     onRetry: () -> Unit,
     onDemo: (() -> Unit)? = null,
     demoMode: Boolean = false,
+    onVideoFrame: () -> Unit = {},
+    onVideoError: (String) -> Unit = {},
 ) {
     var flash by remember { mutableStateOf(false) }
     LaunchedEffect(state.shutterFlashKey) {
@@ -141,6 +143,8 @@ fun DashboardScreen(
                     onChannel = onChannel,
                     onTogglePause = onTogglePause,
                     onDemo = onDemo,
+                    onVideoFrame = onVideoFrame,
+                    onVideoError = onVideoError,
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -178,6 +182,8 @@ private fun LiveViewCard(
     onChannel: (CameraChannel) -> Unit,
     onTogglePause: () -> Unit,
     onDemo: (() -> Unit)?,
+    onVideoFrame: () -> Unit,
+    onVideoError: (String) -> Unit,
 ) {
     val connection = state.connection
     Column(
@@ -194,7 +200,12 @@ private fun LiveViewCard(
                     state = state,
                     onChannel = onChannel,
                 )
-                LiveVideoSurface(state = state, onTogglePause = onTogglePause)
+                LiveVideoSurface(
+                    state = state,
+                    onTogglePause = onTogglePause,
+                    onVideoFrame = onVideoFrame,
+                    onVideoError = onVideoError,
+                )
             }
 
             is CameraConnectionState.Connecting -> ConnectingCard(
@@ -282,6 +293,8 @@ private fun RecordingPill(recording: RecordingState) {
 private fun LiveVideoSurface(
     state: DashboardUiState,
     onTogglePause: () -> Unit,
+    onVideoFrame: () -> Unit,
+    onVideoError: (String) -> Unit,
 ) {
     val paused = state.previewPaused
     Box(
@@ -322,6 +335,8 @@ private fun LiveVideoSurface(
             PlatformLiveVideo(
                 url = state.streamUrl,
                 modifier = Modifier.fillMaxSize(),
+                onFrame = onVideoFrame,
+                onError = onVideoError,
             )
         }
 

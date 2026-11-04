@@ -209,7 +209,11 @@ fun SettingsModalSheet(
                 )
                 SettingsRow(
                     label = "Firmware Version",
-                    value = "${state.firmwareVersion}${if (state.firmwareIsLatest) " (Latest)" else " (Installed)"}",
+                    value = if (state.firmwareVersion == "—") {
+                        "—"
+                    } else {
+                        "${state.firmwareVersion}${if (state.firmwareIsLatest) " (Latest)" else " (Installed)"}"
+                    },
                     onClick = { showDiagnostics = true },
                 )
                 Spacer(Modifier.height(8.dp))

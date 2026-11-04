@@ -139,6 +139,10 @@ class DashboardViewModel(
         viewModelScope.launch { camera.stopRecording() }
     }
 
+    fun onVideoFrame() = camera.onVideoFrame()
+
+    fun onVideoError(message: String) = camera.onVideoError(message)
+
     fun dismissBanner() {
         _state.update { it.copy(banner = null) }
     }

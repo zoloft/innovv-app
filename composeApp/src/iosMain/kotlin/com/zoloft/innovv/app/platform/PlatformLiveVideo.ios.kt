@@ -4,7 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 @Composable
-actual fun PlatformLiveVideo(url: String, modifier: Modifier) {
+actual fun PlatformLiveVideo(
+    url: String,
+    modifier: Modifier,
+    onFrame: () -> Unit,
+    onError: (String) -> Unit,
+) {
     // VLCKit/MobileVLCKit is the intended iOS RTSP implementation. The
     // Compose live-view surface remains visible until the player is linked.
 }

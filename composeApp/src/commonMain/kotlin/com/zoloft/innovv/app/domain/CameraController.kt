@@ -25,6 +25,8 @@ interface CameraController {
     suspend fun resumePreview()
     suspend fun refreshTelemetry()
     fun openWifiSettings()
+    fun onVideoFrame()
+    fun onVideoError(message: String)
 
     companion object {
         const val DEFAULT_SSID = "INNOVV_K7_5.8G"

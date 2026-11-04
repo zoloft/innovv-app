@@ -66,6 +66,8 @@ class SdkCameraSession(
     private var connectJob: Job? = null
     private var telemetryJob: Job? = null
     private var eventJob: Job? = null
+    private var watchdogJob: Job? = null
+    private var lastFrameAtMillis: Long = 0L
     private var recordingStartedAt: Long? = null
 
     override fun connect(ssid: String) {
@@ -143,6 +145,9 @@ class SdkCameraSession(
                 startEventCollector(newClient)
                 startTelemetryCollector(newClient)
                 refreshTelemetryInternal(newClient)
+                if (_liveLinks.value?.movieUrl != null) {
+                    startStreamWatchdog()
+                }
             } catch (cancelled: CancellationException) {
                 cleanup()
                 _connection.value = CameraConnectionState.Disconnected
@@ -200,6 +205,7 @@ class SdkCameraSession(
             val links = runCatching { client.getLiveView() }.getOrNull()
             if (links != null) {
                 _liveLinks.value = LiveStreamLinks(links.movieUrl, links.photoUrl)
+                lastFrameAtMillis = Clock.System.now().toEpochMilliseconds()
             }
         }
     }
@@ -215,6 +221,7 @@ class SdkCameraSession(
         val current = _connection.value
         if (current is CameraConnectionState.Connected) {
             _connection.value = current.copy(stream = StreamState.LIVE)
+            lastFrameAtMillis = Clock.System.now().toEpochMilliseconds()
         }
     }
 
@@ -225,6 +232,16 @@ class SdkCameraSession(
 
     override fun openWifiSettings() {
         binder.openSystemWifiSettings()
+    }
+
+    override fun onVideoFrame() {
+        lastFrameAtMillis = Clock.System.now().toEpochMilliseconds()
+    }
+
+    override fun onVideoError(message: String) {
+        _liveLinks.value = null
+        _connection.value = CameraConnectionState.Disconnected
+        cleanup()
     }
 
     suspend fun <T> useClient(block: suspend (InnovvClient) -> T): Result<T> {
@@ -336,7 +353,28 @@ class SdkCameraSession(
         )
     }
 
+    private fun startStreamWatchdog() {
+        watchdogJob?.cancel()
+        lastFrameAtMillis = Clock.System.now().toEpochMilliseconds()
+        watchdogJob = scope.launch {
+            while (isActive) {
+                delay(250)
+                val connected = _connection.value as? CameraConnectionState.Connected ?: continue
+                if (connected.stream != StreamState.LIVE) continue
+                if (_liveLinks.value?.movieUrl == null) continue
+                if (Clock.System.now().toEpochMilliseconds() - lastFrameAtMillis > 1_500) {
+                    _liveLinks.value = null
+                    _connection.value = CameraConnectionState.Disconnected
+                    cleanup()
+                    break
+                }
+            }
+        }
+    }
+
     private fun cleanup() {
+        watchdogJob?.cancel()
+        watchdogJob = null
         telemetryJob?.cancel()
         telemetryJob = null
         eventJob?.cancel()

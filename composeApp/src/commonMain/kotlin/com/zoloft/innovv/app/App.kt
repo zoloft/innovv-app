@@ -79,6 +79,8 @@ fun App() {
                             null
                         },
                         demoMode = demoMode,
+                        onVideoFrame = container.dashboard::onVideoFrame,
+                        onVideoError = container.dashboard::onVideoError,
                     )
                 }
                 composable("gallery") {

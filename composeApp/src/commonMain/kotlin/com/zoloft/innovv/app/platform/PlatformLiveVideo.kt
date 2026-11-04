@@ -9,4 +9,9 @@ import androidx.compose.ui.Modifier
  * surface shows the live-view placeholder until the player is linked.
  */
 @Composable
-expect fun PlatformLiveVideo(url: String, modifier: Modifier = Modifier)
+expect fun PlatformLiveVideo(
+    url: String,
+    modifier: Modifier = Modifier,
+    onFrame: () -> Unit = {},
+    onError: (String) -> Unit = {},
+)
