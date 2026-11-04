@@ -22,6 +22,10 @@ integration point; see [Known limitations](#known-limitations).
 ## Features
 
 - Connected / connecting / disconnected dashboard states.
+- Automatic camera discovery: probes the current Wi-Fi for an INNOVV camera,
+  scans for INNOVV SSIDs with dynamic suffixes (for example
+  `5G_INNOVV_K5_...`), and presents a network picker when discovery cannot
+  choose automatically.
 - Connection status pill, live RTSP surface, front/rear camera selector, REC
   timer, telemetry cards, and quick actions.
 - Snapshot, Lock Event (best effort), Pause/Resume preview, and Settings.
@@ -37,6 +41,8 @@ integration point; see [Known limitations](#known-limitations).
 - Android Wi-Fi binding through `WifiNetworkSpecifier` +
   `ConnectivityManager.bindProcessToNetwork`.
 - Demo mode in debug builds for exploring the connected UI without a camera.
+- Debug request/response traffic logging, enabled by default in debug builds and
+  controlled from Settings → Developer.
 
 ## Project layout
 
@@ -132,6 +138,33 @@ for `192.168.1.254` through `network_security_config.xml`.
 iOS: local network, motion (for the phone G-force fallback), and hotspot
 configuration entitlements are declared in the Xcode project/Info.plist.
 
+## Camera discovery
+
+When you tap **Tap to connect**, the app:
+
+1. Binds to the current Wi-Fi network and sends a heartbeat to
+   `192.168.1.254`. If an INNOVV camera answers, it is used even when the SSID
+   does not match a hard-coded name.
+2. If no camera answers, scans the phone's Wi-Fi networks for SSIDs containing
+   `INNOVV` (case-insensitive), so names such as `5G_INNOVV_K5_1234` work.
+3. Connects automatically when exactly one INNOVV network is found.
+4. Shows a network picker when there are multiple INNOVV networks, or when none
+   are found. Secured networks prompt for a password before connecting.
+5. Offers **Open Wi-Fi settings** when scanning is unavailable or the network
+   must be joined manually (iOS cannot return arbitrary Wi-Fi scan results).
+
+## Debug traffic logging
+
+Debug builds log every SDK HTTP request, response body, streamed byte count, and
+camera event. Logging is enabled by default and can be disabled immediately from
+**Settings → Developer → Request logging**. The last 200 lines are available via
+**View debug log**; the complete log is stored under the app-private
+`INNOVV/debug/traffic.log` file and rotated at 2 MB.
+
+Production builds start with logging disabled and do not show the Developer
+section. Wi-Fi credential URLs and credential response bodies are redacted by
+the SDK before they reach the logger.
+
 ## Camera behavior notes
 
 - The SDK targets the K5 protocol. K7 support is best-effort through the
@@ -155,6 +188,9 @@ configuration entitlements are declared in the Xcode project/Info.plist.
 - **Background downloads:** downloads are foreground-only in v1.
 - **File list truncation:** the camera can truncate large `3015` responses; v1
   shows a retryable error rather than implementing FTP/TFTP.
+- **iOS Wi-Fi scanning:** iOS does not expose arbitrary Wi-Fi scan results to
+  third-party apps; use **Open Wi-Fi settings** and join the camera network
+  manually.
 - **K7:** the SDK and command mapping are K5-first.
 
 ## CI and releases

@@ -36,6 +36,7 @@ fun App() {
         val dashboardState by container.dashboard.state.collectAsStateWithLifecycle()
         val galleryState by container.gallery.state.collectAsStateWithLifecycle()
         val settingsState by container.settings.state.collectAsStateWithLifecycle()
+        val debugLogState by container.settings.debugLogState.collectAsStateWithLifecycle()
         val navController = rememberNavController()
         val snackbarHostState = remember { SnackbarHostState() }
         var showSettings by remember { mutableStateOf(false) }
@@ -64,7 +65,8 @@ fun App() {
                         state = dashboardState,
                         onConnect = container.dashboard::connect,
                         onCancel = container.dashboard::cancelConnect,
-                        onScan = container.dashboard::openWifiSettings,
+                        onScan = container.dashboard::connect,
+                        onOpenWifiSettings = container.dashboard::openWifiSettings,
                         onSettings = { showSettings = true },
                         onGallery = { navController.navigate("gallery") },
                         onLockEvent = container.dashboard::lockEvent,
@@ -81,6 +83,7 @@ fun App() {
                         demoMode = demoMode,
                         onVideoFrame = container.dashboard::onVideoFrame,
                         onVideoError = container.dashboard::onVideoError,
+                        onSelectNetwork = container.dashboard::connectTo,
                     )
                 }
                 composable("gallery") {
@@ -137,6 +140,9 @@ fun App() {
                 onRunDiagnostics = container.settings::runDiagnostics,
                 onDismissApplyState = container.settings::dismissApplyState,
                 onDismissError = container.settings::dismissError,
+                debugLogState = debugLogState,
+                onToggleDebugLogging = container.settings::setDebugLoggingEnabled,
+                onClearDebugLog = container.settings::clearDebugLog,
             )
         }
     }

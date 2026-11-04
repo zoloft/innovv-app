@@ -46,7 +46,15 @@ class DemoCameraController(
     private var telemetryJob: Job? = null
     private var recordingStartedAt: Long? = null
 
-    override fun connect(ssid: String) {
+    override fun connect() {
+        connect(CameraController.DEFAULT_SSID)
+    }
+
+    override fun connectTo(ssid: String, passphrase: String?) {
+        connect(ssid)
+    }
+
+    private fun connect(ssid: String) {
         connectJob?.cancel()
         connectJob = scope.launch {
             val startedAt = Clock.System.now().toEpochMilliseconds()

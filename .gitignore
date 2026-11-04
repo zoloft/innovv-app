@@ -363,3 +363,7 @@ DerivedData/
 *.xcuserstate
 iosApp/Pods/
 iosApp/.build/
+
+### Kotlin / Gradle local state ###
+.kotlin/
+gradle/gradle-daemon-jvm.properties

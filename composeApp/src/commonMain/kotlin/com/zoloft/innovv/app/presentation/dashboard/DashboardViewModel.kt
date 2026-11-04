@@ -65,6 +65,9 @@ class DashboardViewModel(
 
     fun connect() = camera.connect()
 
+    fun connectTo(ssid: String, passphrase: String? = null) =
+        camera.connectTo(ssid, passphrase)
+
     fun cancelConnect() = camera.cancelConnect()
 
     fun disconnect() = camera.disconnect()

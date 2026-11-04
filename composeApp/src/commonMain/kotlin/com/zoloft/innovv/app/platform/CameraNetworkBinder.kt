@@ -1,5 +1,6 @@
 package com.zoloft.innovv.app.platform
 
+import com.zoloft.innovv.app.domain.model.WifiNetworkInfo
 import kotlinx.coroutines.flow.StateFlow
 
 interface CameraNetworkBinder {
@@ -7,6 +8,7 @@ interface CameraNetworkBinder {
 
     suspend fun joinAndBind(ssid: String, passphrase: String? = null): NetworkBindingResult
     suspend fun bind(): NetworkBindingResult
+    suspend fun scanNetworks(): List<WifiNetworkInfo>
     fun unbind()
     suspend fun currentSsid(): String?
     fun openSystemWifiSettings()

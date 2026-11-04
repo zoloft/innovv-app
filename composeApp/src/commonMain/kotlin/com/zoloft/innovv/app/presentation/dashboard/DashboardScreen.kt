@@ -13,11 +13,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,7 +34,10 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,7 +52,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zoloft.innovv.app.core.designsystem.InnovvColors
@@ -79,6 +87,7 @@ fun DashboardScreen(
     onConnect: () -> Unit,
     onCancel: () -> Unit,
     onScan: () -> Unit,
+    onOpenWifiSettings: () -> Unit = {},
     onSettings: () -> Unit,
     onGallery: () -> Unit,
     onLockEvent: () -> Unit,
@@ -91,6 +100,7 @@ fun DashboardScreen(
     demoMode: Boolean = false,
     onVideoFrame: () -> Unit = {},
     onVideoError: (String) -> Unit = {},
+    onSelectNetwork: (String, String?) -> Unit = { _, _ -> },
 ) {
     var flash by remember { mutableStateOf(false) }
     LaunchedEffect(state.shutterFlashKey) {
@@ -170,6 +180,177 @@ fun DashboardScreen(
             )
         }
     }
+
+    val connection = state.connection
+    if (connection is CameraConnectionState.NeedsNetworkSelection) {
+        NetworkSelectionDialog(
+            state = connection,
+            onSelect = onSelectNetwork,
+            onRescan = onRetry,
+            onOpenWifiSettings = onOpenWifiSettings,
+            onCancel = onCancel,
+        )
+    }
+}
+
+@Composable
+private fun NetworkSelectionDialog(
+    state: CameraConnectionState.NeedsNetworkSelection,
+    onSelect: (String, String?) -> Unit,
+    onRescan: () -> Unit,
+    onOpenWifiSettings: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var securedNetwork by remember { mutableStateOf<com.zoloft.innovv.app.domain.model.WifiNetworkInfo?>(null) }
+    val title = when (state.reason) {
+        com.zoloft.innovv.app.domain.model.NetworkSelectionReason.MULTIPLE_INNOVV_NETWORKS ->
+            "Select INNOVV camera"
+        else -> "Select camera network"
+    }
+    val description = when (state.reason) {
+        com.zoloft.innovv.app.domain.model.NetworkSelectionReason.MULTIPLE_INNOVV_NETWORKS ->
+            "Multiple INNOVV networks were found. Pick the one for this camera."
+        com.zoloft.innovv.app.domain.model.NetworkSelectionReason.NO_INNOVV_NETWORK ->
+            "No INNOVV network was found automatically. Pick the camera network, or join it in system settings."
+        com.zoloft.innovv.app.domain.model.NetworkSelectionReason.SCAN_EMPTY ->
+            "No Wi-Fi networks were found. Join the camera's Wi-Fi in system settings and try again."
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onCancel,
+        containerColor = InnovvColors.SurfaceCard,
+        title = {
+            Text(title, color = InnovvColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(description, color = InnovvColors.TextSecondary, fontSize = 11.sp)
+                if (state.networks.isNotEmpty()) {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.heightIn(max = 280.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(state.networks, key = { it.ssid }) { network ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(InnovvColors.BackgroundPrimary)
+                                    .clickable {
+                                        if (network.isCurrent || !network.secured) {
+                                            onSelect(network.ssid, null)
+                                        } else {
+                                            securedNetwork = network
+                                        }
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = network.ssid,
+                                        color = InnovvColors.TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = "${network.rssiDbm} dBm" + if (network.isCurrent) " • Current" else "",
+                                        color = InnovvColors.TextSecondary,
+                                        fontSize = 10.sp,
+                                    )
+                                }
+                                Text(
+                                    text = if (network.secured) "🔒" else "",
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
+                }
+                Text(
+                    text = "Open Wi-Fi settings",
+                    color = InnovvColors.SemanticSuccess,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onOpenWifiSettings).padding(vertical = 4.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onRescan) {
+                Text("Scan again", color = InnovvColors.AccentPrimary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text("Cancel", color = InnovvColors.TextSecondary)
+            }
+        },
+    )
+
+    securedNetwork?.let { network ->
+        NetworkPasswordDialog(
+            network = network,
+            onConnect = { password ->
+                securedNetwork = null
+                onSelect(network.ssid, password)
+            },
+            onDismiss = { securedNetwork = null },
+        )
+    }
+}
+
+@Composable
+private fun NetworkPasswordDialog(
+    network: com.zoloft.innovv.app.domain.model.WifiNetworkInfo,
+    onConnect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = InnovvColors.SurfaceCard,
+        title = {
+            Text(
+                text = "Connect to ${network.ssid}",
+                color = InnovvColors.TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                label = { Text("Wi-Fi password") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = InnovvColors.TextPrimary,
+                    unfocusedTextColor = InnovvColors.TextPrimary,
+                    focusedBorderColor = InnovvColors.AccentPrimary,
+                    unfocusedBorderColor = InnovvColors.BorderSubtle,
+                    focusedLabelColor = InnovvColors.AccentPrimary,
+                    unfocusedLabelColor = InnovvColors.TextSecondary,
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConnect(password) },
+                enabled = password.length >= 8,
+            ) {
+                Text("Connect", color = InnovvColors.AccentPrimary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = InnovvColors.TextSecondary)
+            }
+        },
+    )
 }
 
 @Composable
@@ -178,6 +359,7 @@ private fun LiveViewCard(
     onConnect: () -> Unit,
     onCancel: () -> Unit,
     onScan: () -> Unit,
+    onOpenWifiSettings: () -> Unit = {},
     onRetry: () -> Unit,
     onChannel: (CameraChannel) -> Unit,
     onTogglePause: () -> Unit,
@@ -227,6 +409,14 @@ private fun LiveViewCard(
                 body = "Looking for INNOVV_K7_5.8G on the 5.8 GHz band.",
                 actionLabel = "Cancel",
                 onAction = onCancel,
+            )
+
+            is CameraConnectionState.NeedsNetworkSelection -> StatusCard(
+                icon = { DisconnectedIcon() },
+                title = "Camera network required",
+                body = "Choose the camera Wi-Fi network to continue.",
+                actionLabel = "Choose network",
+                onAction = onRetry,
             )
 
             is CameraConnectionState.Failed -> StatusCard(
@@ -723,6 +913,8 @@ private fun QuickActionsSection(
 }
 
 private fun ConnectionStep.label(ssid: String): String = when (this) {
+    ConnectionStep.DISCOVERING -> "Scanning Wi-Fi for an INNOVV camera..."
+    ConnectionStep.VERIFYING_NETWORK -> "Verifying camera on the current network..."
     ConnectionStep.JOINING_WIFI -> "Joining Wi-Fi SSID ($ssid)..."
     ConnectionStep.BINDING_NETWORK -> "Binding socket to camera gateway (192.168.1.254)..."
     ConnectionStep.HANDSHAKING -> "Handshaking with the camera..."

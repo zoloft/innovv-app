@@ -27,10 +27,39 @@ sealed interface CameraConnectionState {
         val attempt: Int,
     ) : CameraConnectionState
 
+    data class NeedsNetworkSelection(
+        val networks: List<WifiNetworkInfo>,
+        val reason: NetworkSelectionReason,
+        val currentSsid: String? = null,
+    ) : CameraConnectionState
+
     data class Failed(val failure: CameraFailure) : CameraConnectionState
 }
 
+data class DebugLogUiState(
+    val enabled: Boolean = false,
+    val text: String = "",
+    val isDebugBuild: Boolean = false,
+) {
+    val lineCount: Int get() = if (text.isBlank()) 0 else text.lines().size
+}
+
+data class WifiNetworkInfo(
+    val ssid: String,
+    val rssiDbm: Int,
+    val secured: Boolean,
+    val isCurrent: Boolean = false,
+)
+
+enum class NetworkSelectionReason {
+    MULTIPLE_INNOVV_NETWORKS,
+    NO_INNOVV_NETWORK,
+    SCAN_EMPTY,
+}
+
 enum class ConnectionStep {
+    DISCOVERING,
+    VERIFYING_NETWORK,
     JOINING_WIFI,
     BINDING_NETWORK,
     HANDSHAKING,

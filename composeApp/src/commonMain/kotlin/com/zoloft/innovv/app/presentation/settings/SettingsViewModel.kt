@@ -3,6 +3,7 @@ package com.zoloft.innovv.app.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zoloft.innovv.app.domain.CameraController
+import com.zoloft.innovv.app.data.debug.DebugLogManager
 import com.zoloft.innovv.app.data.settings.SettingsCache
 import com.zoloft.innovv.app.domain.SettingsRepository
 import com.zoloft.innovv.app.domain.model.ApplyState
@@ -10,6 +11,7 @@ import com.zoloft.innovv.app.domain.model.ApplyStep
 import com.zoloft.innovv.app.domain.model.CameraConnectionState
 import com.zoloft.innovv.app.domain.model.CameraSettingsState
 import com.zoloft.innovv.app.domain.model.CameraSettingsValues
+import com.zoloft.innovv.app.domain.model.DebugLogUiState
 import com.zoloft.innovv.app.domain.model.DiagnosticsState
 import com.zoloft.innovv.app.domain.model.SettingsAccess
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -30,7 +32,10 @@ class SettingsViewModel(
     private val camera: CameraController,
     private val repository: SettingsRepository,
     private val cache: SettingsCache = SettingsCache(),
+    private val debugLog: DebugLogManager? = null,
 ) : ViewModel() {
+    val debugLogState: StateFlow<DebugLogUiState> =
+        debugLog?.state ?: MutableStateFlow(DebugLogUiState())
     private val _state = MutableStateFlow(CameraSettingsState())
     val state: StateFlow<CameraSettingsState> = _state.asStateFlow()
 
@@ -183,5 +188,13 @@ class SettingsViewModel(
 
     fun dismissError() {
         _state.update { it.copy(error = null) }
+    }
+
+    fun setDebugLoggingEnabled(enabled: Boolean) {
+        debugLog?.setEnabled(enabled)
+    }
+
+    fun clearDebugLog() {
+        debugLog?.clear()
     }
 }

@@ -78,7 +78,11 @@ fun ConnectionStatusPill(
             InnovvColors.SemanticSuccess,
         )
         is CameraConnectionState.Connecting -> Triple(
-            "◌ Connecting to ${state.ssid}...",
+            if (state.ssid.isBlank()) {
+                "◌ Discovering camera..."
+            } else {
+                "◌ Connecting to ${state.ssid}..."
+            },
             InnovvColors.AccentPrimary.copy(alpha = 0.25f),
             InnovvColors.AccentPrimary,
         )
@@ -89,6 +93,11 @@ fun ConnectionStatusPill(
         )
         is CameraConnectionState.Scanning -> Triple(
             "◌ Scanning for camera...",
+            InnovvColors.AccentPrimary.copy(alpha = 0.25f),
+            InnovvColors.AccentPrimary,
+        )
+        is CameraConnectionState.NeedsNetworkSelection -> Triple(
+            "◌ Camera network required",
             InnovvColors.AccentPrimary.copy(alpha = 0.25f),
             InnovvColors.AccentPrimary,
         )

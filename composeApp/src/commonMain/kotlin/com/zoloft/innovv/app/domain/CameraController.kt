@@ -11,7 +11,8 @@ interface CameraController {
     val telemetry: StateFlow<TelemetryState>
     val liveLinks: StateFlow<LiveStreamLinks?>
 
-    fun connect(ssid: String = DEFAULT_SSID)
+    fun connect()
+    fun connectTo(ssid: String, passphrase: String? = null)
     fun cancelConnect()
     fun disconnect()
 

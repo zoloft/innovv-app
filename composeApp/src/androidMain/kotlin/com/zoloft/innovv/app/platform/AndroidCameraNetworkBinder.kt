@@ -1,10 +1,12 @@
 package com.zoloft.innovv.app.platform
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
@@ -12,10 +14,14 @@ import android.provider.Settings
 import android.content.Intent
 import androidx.annotation.RequiresApi
 import com.zoloft.innovv.app.InnovvApplication
+import com.zoloft.innovv.app.domain.model.WifiNetworkInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
@@ -126,6 +132,32 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         return bindActiveWifi(ssid)
     }
 
+    @SuppressLint("MissingPermission")
+    override suspend fun scanNetworks(): List<WifiNetworkInfo> = withContext(Dispatchers.IO) {
+        val current = currentSsid()
+        runCatching { wifiManager.startScan() }
+        delay(700)
+        @Suppress("DEPRECATION")
+        val results = runCatching { wifiManager.scanResults }.getOrElse { emptyList() }
+        results.asSequence()
+            .filter { it.SSID.isNotBlank() && it.SSID != "<unknown ssid>" }
+            .distinctBy { it.SSID }
+            .sortedByDescending { it.level }
+            .map { result ->
+                val capabilities = result.capabilities.uppercase()
+                WifiNetworkInfo(
+                    ssid = result.SSID,
+                    rssiDbm = result.level,
+                    secured = capabilities.contains("WPA") ||
+                        capabilities.contains("WEP") ||
+                        capabilities.contains("EAP") ||
+                        capabilities.contains("SAE"),
+                    isCurrent = result.SSID == current,
+                )
+            }
+            .toList()
+    }
+
     override fun unbind() {
         callback?.let { runCatching { connectivityManager.unregisterNetworkCallback(it) } }
         callback = null
@@ -134,11 +166,25 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
         _state.value = CameraNetworkState.Unbound
     }
 
-    @Suppress("DEPRECATION")
+    @SuppressLint("MissingPermission")
     override suspend fun currentSsid(): String? {
-        return runCatching {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            currentSsidFromActiveNetwork()
+        } else {
+            null
+        } ?: runCatching {
+            @Suppress("DEPRECATION")
             wifiManager.connectionInfo?.ssid?.trim('"')
-        }.getOrNull()
+        }.getOrNull()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun currentSsidFromActiveNetwork(): String? {
+        val network = connectivityManager.activeNetwork ?: return null
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return null
+        if (!capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return null
+        val wifiInfo = capabilities.transportInfo as? WifiInfo ?: return null
+        return wifiInfo.ssid?.trim('"')?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
     }
 
     override fun openSystemWifiSettings() {

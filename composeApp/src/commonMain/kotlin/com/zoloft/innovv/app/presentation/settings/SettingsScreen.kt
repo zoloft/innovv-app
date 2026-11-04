@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -37,6 +38,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -67,6 +69,7 @@ import com.zoloft.innovv.app.domain.model.ApplyState
 import com.zoloft.innovv.app.domain.model.ApplyStep
 import com.zoloft.innovv.app.domain.model.CameraSettingsState
 import com.zoloft.innovv.app.domain.model.CameraSettingsValues
+import com.zoloft.innovv.app.domain.model.DebugLogUiState
 import com.zoloft.innovv.app.domain.model.DiagnosticsState
 import com.zoloft.innovv.app.domain.model.GSensorLevel
 import com.zoloft.innovv.app.domain.model.LoopInterval
@@ -87,6 +90,9 @@ fun SettingsModalSheet(
     onRunDiagnostics: () -> Unit,
     onDismissApplyState: () -> Unit,
     onDismissError: () -> Unit,
+    debugLogState: DebugLogUiState? = null,
+    onToggleDebugLogging: (Boolean) -> Unit = {},
+    onClearDebugLog: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val online = state.access is SettingsAccess.Online
@@ -94,6 +100,7 @@ fun SettingsModalSheet(
     var showFormatDialog by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<SettingsPicker?>(null) }
     var showDiagnostics by remember { mutableStateOf(false) }
+    var showDebugLog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { onLoad() }
 
@@ -216,6 +223,26 @@ fun SettingsModalSheet(
                     },
                     onClick = { showDiagnostics = true },
                 )
+
+                if (debugLogState?.isDebugBuild == true) {
+                    Spacer(Modifier.height(4.dp))
+                    InnovvSectionHeader(
+                        text = "Developer",
+                        color = InnovvColors.AccentPrimary,
+                        fontSize = 12,
+                    )
+                    SettingsRow(
+                        label = "Request logging",
+                        subtitle = "Logs requests and responses for debugging",
+                        value = if (debugLogState.enabled) "On" else "Off",
+                        onClick = { onToggleDebugLogging(!debugLogState.enabled) },
+                    )
+                    SettingsRow(
+                        label = "View debug log",
+                        value = "${debugLogState.lineCount} lines",
+                        onClick = { showDebugLog = true },
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
             }
 
@@ -309,6 +336,14 @@ fun SettingsModalSheet(
             state = state,
             onDismiss = { showDiagnostics = false },
             onRun = onRunDiagnostics,
+        )
+    }
+
+    if (showDebugLog && debugLogState != null) {
+        DebugLogDialog(
+            state = debugLogState,
+            onDismiss = { showDebugLog = false },
+            onClear = onClearDebugLog,
         )
     }
 
@@ -595,6 +630,49 @@ private fun DiagnosticsDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Close", color = InnovvColors.TextSecondary) }
+        },
+    )
+}
+
+@Composable
+private fun DebugLogDialog(
+    state: DebugLogUiState,
+    onDismiss: () -> Unit,
+    onClear: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = InnovvColors.SurfaceCard,
+        title = { Text("Debug traffic log", color = InnovvColors.TextPrimary) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 380.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = if (state.text.isBlank()) {
+                        "No requests have been logged yet."
+                    } else {
+                        state.text
+                    },
+                    color = InnovvColors.TextSecondary,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close", color = InnovvColors.AccentPrimary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onClear) {
+                Text("Clear log", color = InnovvColors.SemanticDanger)
+            }
         },
     )
 }

@@ -1,5 +1,6 @@
 package com.zoloft.innovv.app.platform
 
+import com.zoloft.innovv.app.domain.model.WifiNetworkInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,6 +54,12 @@ class IosCameraNetworkBinder : CameraNetworkBinder {
             _state.value = CameraNetworkState.Failed(NetworkFailure.UNKNOWN)
             NetworkBindingResult.Failure(NetworkFailure.UNKNOWN, failure.message)
         }
+    }
+
+    override suspend fun scanNetworks(): List<WifiNetworkInfo> {
+        // iOS does not expose arbitrary Wi-Fi scan results to third-party apps.
+        // The user is directed to system Wi-Fi settings for manual selection.
+        return emptyList()
     }
 
     override suspend fun bind(): NetworkBindingResult {

@@ -1,6 +1,8 @@
 package com.zoloft.innovv.app.data.sdk
 
+import com.zoloft.innovv.app.data.debug.DebugLogManager
 import com.zoloft.innovv.app.domain.CameraController
+import com.zoloft.innovv.app.domain.isInnovvSsid
 import com.zoloft.innovv.app.domain.model.BatteryState
 import com.zoloft.innovv.app.domain.model.CameraChannel
 import com.zoloft.innovv.app.domain.model.CameraConnectionState
@@ -9,6 +11,7 @@ import com.zoloft.innovv.app.domain.model.ConnectionStep
 import com.zoloft.innovv.app.domain.model.GForceState
 import com.zoloft.innovv.app.domain.model.GpsState
 import com.zoloft.innovv.app.domain.model.LiveStreamLinks
+import com.zoloft.innovv.app.domain.model.NetworkSelectionReason
 import com.zoloft.innovv.app.domain.model.RecordingState
 import com.zoloft.innovv.app.domain.model.StorageState
 import com.zoloft.innovv.app.domain.model.StreamState
@@ -38,6 +41,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 
 /**
@@ -49,6 +53,7 @@ import kotlin.time.Clock
 class SdkCameraSession(
     private val binder: CameraNetworkBinder = createCameraNetworkBinder(),
     private val config: InnovvConfig = InnovvConfig(),
+    private val debugLog: DebugLogManager? = null,
 ) : CameraController {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val writeMutex = Mutex()
@@ -70,18 +75,50 @@ class SdkCameraSession(
     private var lastFrameAtMillis: Long = 0L
     private var recordingStartedAt: Long? = null
 
-    override fun connect(ssid: String) {
+    override fun connect() {
+        debugLog?.logInfo("Camera discovery requested")
+        val startedAt = Clock.System.now().toEpochMilliseconds()
+        launchConnection(
+            initial = CameraConnectionState.Connecting(
+                ssid = "",
+                step = ConnectionStep.DISCOVERING,
+                startedAtMillis = startedAt,
+                canCancel = false,
+            ),
+        ) {
+            discoverAndConnect(startedAt)
+        }
+    }
+
+    override fun connectTo(ssid: String, passphrase: String?) {
+        debugLog?.logInfo("Connecting to selected network $ssid")
+        val startedAt = Clock.System.now().toEpochMilliseconds()
+        launchConnection(
+            initial = CameraConnectionState.Connecting(
+                ssid = ssid,
+                step = ConnectionStep.JOINING_WIFI,
+                startedAtMillis = startedAt,
+                canCancel = false,
+            ),
+        ) {
+            joinAndHandshake(
+                ssid = ssid,
+                passphrase = passphrase,
+                startedAt = startedAt,
+                alreadyBound = false,
+            )
+        }
+    }
+
+    private fun launchConnection(
+        initial: CameraConnectionState.Connecting,
+        block: suspend () -> Unit,
+    ) {
         connectJob?.cancel()
         connectJob = scope.launch {
             var cancelFlagJob: Job? = null
             try {
-                val startedAt = Clock.System.now().toEpochMilliseconds()
-                _connection.value = CameraConnectionState.Connecting(
-                    ssid = ssid,
-                    step = ConnectionStep.JOINING_WIFI,
-                    startedAtMillis = startedAt,
-                    canCancel = false,
-                )
+                _connection.value = initial
                 cancelFlagJob = launch {
                     delay(3_000)
                     val current = _connection.value
@@ -89,65 +126,7 @@ class SdkCameraSession(
                         _connection.value = current.copy(canCancel = true)
                     }
                 }
-
-                val currentSsid = binder.currentSsid()
-                val binding = if (currentSsid?.contains(ssid, ignoreCase = true) == true) {
-                    binder.bind()
-                } else {
-                    binder.joinAndBind(ssid)
-                }
-                if (binding is NetworkBindingResult.Failure) {
-                    fail(binding.reason.name.lowercase().replace('_', ' '))
-                    return@launch
-                }
-
-                _connection.value = CameraConnectionState.Connecting(
-                    ssid = ssid,
-                    step = ConnectionStep.BINDING_NETWORK,
-                    startedAtMillis = startedAt,
-                    canCancel = false,
-                )
-
-                val newClient = InnovvSdk.createClient(
-                    config.copy(
-                        baseUrl = "http://192.168.1.254/",
-                        connectTimeoutMillis = 3_000,
-                        requestTimeoutMillis = 8_000,
-                    ),
-                )
-                client = newClient
-
-                _connection.value = CameraConnectionState.Connecting(
-                    ssid = ssid,
-                    step = ConnectionStep.HANDSHAKING,
-                    startedAtMillis = startedAt,
-                    canCancel = true,
-                )
-                newClient.heartbeat()
-                val info = newClient.getDeviceInfo()
-
-                _connection.value = CameraConnectionState.Connecting(
-                    ssid = ssid,
-                    step = ConnectionStep.BUFFERING_STREAM,
-                    startedAtMillis = startedAt,
-                    canCancel = true,
-                )
-                val links = runCatching { newClient.getLiveView() }.getOrNull()
-                _liveLinks.value = links?.let {
-                    LiveStreamLinks(movieUrl = it.movieUrl, photoUrl = it.photoUrl)
-                }
-
-                _connection.value = CameraConnectionState.Connected(
-                    ssid = ssid,
-                    firmwareVersion = info.firmwareVersion,
-                    stream = StreamState.LIVE,
-                )
-                startEventCollector(newClient)
-                startTelemetryCollector(newClient)
-                refreshTelemetryInternal(newClient)
-                if (_liveLinks.value?.movieUrl != null) {
-                    startStreamWatchdog()
-                }
+                block()
             } catch (cancelled: CancellationException) {
                 cleanup()
                 _connection.value = CameraConnectionState.Disconnected
@@ -161,7 +140,175 @@ class SdkCameraSession(
         }
     }
 
+    private suspend fun discoverAndConnect(startedAt: Long) {
+        val currentSsid = binder.currentSsid()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+        val binding = runCatching { binder.bind() }.getOrNull()
+        if (binding is NetworkBindingResult.Success) {
+            updateConnecting(
+                startedAt = startedAt,
+                ssid = currentSsid ?: "camera",
+                step = ConnectionStep.VERIFYING_NETWORK,
+                canCancel = true,
+            )
+            if (probeCamera()) {
+                joinAndHandshake(
+                    ssid = currentSsid ?: "camera",
+                    passphrase = null,
+                    startedAt = startedAt,
+                    alreadyBound = true,
+                )
+                return
+            }
+        }
+
+        val networks = runCatching { binder.scanNetworks() }.getOrElse { emptyList() }
+        val innovvNetworks = networks.filter { isInnovvSsid(it.ssid) }
+        when {
+            innovvNetworks.size == 1 -> {
+                val selected = innovvNetworks.single()
+                joinAndHandshake(
+                    ssid = selected.ssid,
+                    passphrase = null,
+                    startedAt = startedAt,
+                    alreadyBound = currentSsid == selected.ssid,
+                )
+            }
+            innovvNetworks.size > 1 -> {
+                _connection.value = CameraConnectionState.NeedsNetworkSelection(
+                    networks = innovvNetworks,
+                    reason = NetworkSelectionReason.MULTIPLE_INNOVV_NETWORKS,
+                    currentSsid = currentSsid,
+                )
+            }
+            else -> {
+                _connection.value = CameraConnectionState.NeedsNetworkSelection(
+                    networks = networks,
+                    reason = if (networks.isEmpty()) {
+                        NetworkSelectionReason.SCAN_EMPTY
+                    } else {
+                        NetworkSelectionReason.NO_INNOVV_NETWORK
+                    },
+                    currentSsid = currentSsid,
+                )
+            }
+        }
+    }
+
+    private suspend fun probeCamera(): Boolean = withTimeoutOrNull(4_000) {
+        val probe = InnovvSdk.createClient(
+            config.copy(
+                baseUrl = "http://192.168.1.254/",
+                connectTimeoutMillis = 1_200,
+                requestTimeoutMillis = 2_500,
+                socketTimeoutMillis = 2_500,
+                maxRetries = 0,
+                trafficLogger = debugLog,
+            ),
+        )
+        try {
+            probe.heartbeat()
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        } finally {
+            probe.close()
+        }
+    } ?: false
+
+    private suspend fun joinAndHandshake(
+        ssid: String,
+        passphrase: String?,
+        startedAt: Long,
+        alreadyBound: Boolean,
+    ) {
+        updateConnecting(
+            startedAt = startedAt,
+            ssid = ssid,
+            step = if (alreadyBound) ConnectionStep.BINDING_NETWORK else ConnectionStep.JOINING_WIFI,
+            canCancel = false,
+        )
+
+        if (!alreadyBound) {
+            val current = binder.currentSsid()
+            val binding = if (current?.contains(ssid, ignoreCase = true) == true) {
+                binder.bind()
+            } else {
+                binder.joinAndBind(ssid, passphrase)
+            }
+            if (binding is NetworkBindingResult.Failure) {
+                fail(binding.reason.name.lowercase().replace('_', ' '))
+                return
+            }
+        }
+
+        updateConnecting(
+            startedAt = startedAt,
+            ssid = ssid,
+            step = ConnectionStep.BINDING_NETWORK,
+            canCancel = true,
+        )
+
+        val newClient = InnovvSdk.createClient(
+            config.copy(
+                baseUrl = "http://192.168.1.254/",
+                connectTimeoutMillis = 3_000,
+                requestTimeoutMillis = 8_000,
+                trafficLogger = debugLog,
+            ),
+        )
+        client = newClient
+
+        updateConnecting(
+            startedAt = startedAt,
+            ssid = ssid,
+            step = ConnectionStep.HANDSHAKING,
+            canCancel = true,
+        )
+        newClient.heartbeat()
+        val info = newClient.getDeviceInfo()
+
+        updateConnecting(
+            startedAt = startedAt,
+            ssid = ssid,
+            step = ConnectionStep.BUFFERING_STREAM,
+            canCancel = true,
+        )
+        val links = runCatching { newClient.getLiveView() }.getOrNull()
+        _liveLinks.value = links?.let {
+            LiveStreamLinks(movieUrl = it.movieUrl, photoUrl = it.photoUrl)
+        }
+
+        _connection.value = CameraConnectionState.Connected(
+            ssid = ssid,
+            firmwareVersion = info.firmwareVersion,
+            stream = StreamState.LIVE,
+        )
+        startEventCollector(newClient)
+        startTelemetryCollector(newClient)
+        refreshTelemetryInternal(newClient)
+        if (_liveLinks.value?.movieUrl != null) {
+            startStreamWatchdog()
+        }
+    }
+
+    private fun updateConnecting(
+        startedAt: Long,
+        ssid: String,
+        step: ConnectionStep,
+        canCancel: Boolean,
+    ) {
+        _connection.value = CameraConnectionState.Connecting(
+            ssid = ssid,
+            step = step,
+            startedAtMillis = startedAt,
+            canCancel = canCancel,
+        )
+    }
+
     override fun cancelConnect() {
+        debugLog?.logInfo("Connection cancelled")
         connectJob?.cancel()
         connectJob = null
         cleanup()
@@ -169,6 +316,7 @@ class SdkCameraSession(
     }
 
     override fun disconnect() {
+        debugLog?.logInfo("Camera disconnected")
         connectJob?.cancel()
         connectJob = null
         cleanup()
@@ -265,6 +413,7 @@ class SdkCameraSession(
         eventJob = scope.launch {
             runCatching {
                 innovvClient.events().collect { event ->
+                    debugLog?.logEvent("${event.commandId}/${event.status} ${event::class.simpleName}")
                     when (event) {
                         CameraEvent.RecordStarted -> {
                             val now = Clock.System.now().toEpochMilliseconds()
