@@ -86,7 +86,7 @@ Requirements:
 
 - JDK 17+ (JDK 21 is used in this workspace).
 - Android SDK 37 for the Android target.
-- macOS + Xcode 16+ for linking/running the iOS app.
+- macOS + Xcode 26+ with the iOS 26 SDK for linking/running the iOS app.
 
 ```bash
 # Android debug APK
