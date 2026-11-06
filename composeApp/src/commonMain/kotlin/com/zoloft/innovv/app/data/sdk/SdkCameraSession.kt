@@ -154,13 +154,15 @@ class SdkCameraSession(
                 step = ConnectionStep.VERIFYING_NETWORK,
                 canCancel = true,
             )
-            if (probeCamera()) {
+            val baseUrl = resolveBaseUrl()
+            if (probeCamera(baseUrl)) {
                 debugLog?.logInfo("INNOVV heartbeat confirmed on current network")
                 joinAndHandshake(
                     ssid = currentSsid ?: "INNOVV camera",
                     passphrase = null,
                     startedAt = startedAt,
                     alreadyBound = true,
+                    baseUrl = baseUrl,
                 )
                 return
             }
@@ -205,10 +207,10 @@ class SdkCameraSession(
         }
     }
 
-    private suspend fun probeCamera(): Boolean = withTimeoutOrNull(4_000.milliseconds) {
+    private suspend fun probeCamera(baseUrl: String): Boolean = withTimeoutOrNull(4_000.milliseconds) {
         val probe = InnovvSdk.createClient(
             config.copy(
-                baseUrl = "http://192.168.1.254/",
+                baseUrl = baseUrl,
                 connectTimeoutMillis = 1_200,
                 requestTimeoutMillis = 2_500,
                 socketTimeoutMillis = 2_500,
@@ -233,6 +235,7 @@ class SdkCameraSession(
         passphrase: String?,
         startedAt: Long,
         alreadyBound: Boolean,
+        baseUrl: String? = null,
     ) {
         updateConnecting(
             startedAt = startedAt,
@@ -261,9 +264,10 @@ class SdkCameraSession(
             canCancel = true,
         )
 
+        val resolvedBaseUrl = baseUrl ?: resolveBaseUrl()
         val newClient = InnovvSdk.createClient(
             config.copy(
-                baseUrl = "http://192.168.1.254/",
+                baseUrl = resolvedBaseUrl,
                 connectTimeoutMillis = 3_000,
                 requestTimeoutMillis = 8_000,
                 trafficLogger = debugLog,
@@ -303,6 +307,14 @@ class SdkCameraSession(
         if (_liveLinks.value?.movieUrl != null) {
             startStreamWatchdog()
         }
+    }
+
+    private suspend fun resolveBaseUrl(): String {
+        val gateway = runCatching { binder.currentGateway() }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?: "192.168.1.254"
+        debugLog?.logInfo("Camera endpoint: http://$gateway/")
+        return "http://$gateway/"
     }
 
     private fun updateConnecting(

@@ -76,6 +76,8 @@ class IosCameraNetworkBinder : CameraNetworkBinder {
 
     override suspend fun currentSsid(): String? = null
 
+    override suspend fun currentGateway(): String? = null
+
     override fun openSystemWifiSettings() {
         val url = NSURL.URLWithString(UIApplicationOpenSettingsURLString) ?: return
         UIApplication.sharedApplication.openURL(url)

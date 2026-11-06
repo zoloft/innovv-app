@@ -11,6 +11,7 @@ interface CameraNetworkBinder {
     suspend fun scanNetworks(): List<WifiNetworkInfo>
     fun unbind()
     suspend fun currentSsid(): String?
+    suspend fun currentGateway(): String?
     fun openSystemWifiSettings()
 }
 

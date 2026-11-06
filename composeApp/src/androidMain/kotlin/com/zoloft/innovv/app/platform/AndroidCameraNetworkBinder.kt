@@ -177,6 +177,16 @@ class AndroidCameraNetworkBinder : CameraNetworkBinder {
             .toList()
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
+    override suspend fun currentGateway(): String? {
+        val network = findWifiNetwork() ?: return null
+        val linkProperties = connectivityManager.getLinkProperties(network) ?: return null
+        return linkProperties.routes
+            .firstOrNull { it.isDefaultRoute && it.gateway != null }
+            ?.gateway
+            ?.hostAddress
+    }
+
     override fun unbind() {
         callback?.let { runCatching { connectivityManager.unregisterNetworkCallback(it) } }
         callback = null
