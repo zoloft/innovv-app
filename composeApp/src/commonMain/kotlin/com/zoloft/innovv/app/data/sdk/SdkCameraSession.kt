@@ -207,23 +207,31 @@ class SdkCameraSession(
         }
     }
 
-    private suspend fun probeCamera(baseUrl: String): Boolean = withTimeoutOrNull(4_000.milliseconds) {
+    private suspend fun probeCamera(baseUrl: String): Boolean = withTimeoutOrNull(8_000.milliseconds) {
         val probe = InnovvSdk.createClient(
             config.copy(
                 baseUrl = baseUrl,
-                connectTimeoutMillis = 1_200,
-                requestTimeoutMillis = 2_500,
-                socketTimeoutMillis = 2_500,
+                connectTimeoutMillis = 3_000,
+                requestTimeoutMillis = 4_000,
+                socketTimeoutMillis = 4_000,
                 maxRetries = 0,
                 trafficLogger = debugLog,
             ),
         )
         try {
-            probe.heartbeat()
-            true
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
+            repeat(2) { attempt ->
+                try {
+                    probe.heartbeat()
+                    return@withTimeoutOrNull true
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    debugLog?.logInfo(
+                        "Camera probe attempt ${attempt + 1} failed: ${failure.message}",
+                    )
+                    if (attempt == 0) delay(700.milliseconds)
+                }
+            }
             false
         } finally {
             probe.close()
@@ -268,7 +276,7 @@ class SdkCameraSession(
         val newClient = InnovvSdk.createClient(
             config.copy(
                 baseUrl = resolvedBaseUrl,
-                connectTimeoutMillis = 3_000,
+                connectTimeoutMillis = 5_000,
                 requestTimeoutMillis = 8_000,
                 trafficLogger = debugLog,
             ),
@@ -281,8 +289,7 @@ class SdkCameraSession(
             step = ConnectionStep.HANDSHAKING,
             canCancel = true,
         )
-        newClient.heartbeat()
-        val info = newClient.getDeviceInfo()
+        val info = handshakeWithRetry(newClient)
 
         updateConnecting(
             startedAt = startedAt,
@@ -307,6 +314,25 @@ class SdkCameraSession(
         if (_liveLinks.value?.movieUrl != null) {
             startStreamWatchdog()
         }
+    }
+
+    private suspend fun handshakeWithRetry(client: InnovvClient): com.zoloft.innovv.sdk.model.DeviceInfo {
+        var lastFailure: Throwable? = null
+        repeat(3) { attempt ->
+            try {
+                client.heartbeat()
+                return client.getDeviceInfo()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                lastFailure = failure
+                debugLog?.logInfo(
+                    "Camera handshake attempt ${attempt + 1} failed: ${failure.message}",
+                )
+                if (attempt < 2) delay(1_000.milliseconds)
+            }
+        }
+        throw lastFailure ?: IllegalStateException("Camera handshake failed")
     }
 
     private suspend fun resolveBaseUrl(): String {
